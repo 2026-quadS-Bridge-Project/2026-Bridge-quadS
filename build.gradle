@@ -1,0 +1,48 @@
+// 1. 플러그인 설정: 자바 및 스프링 부트 프레임워크 구동을 위한 핵심 도구와 버전을 정의합니다.
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.1'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+// 2. 프로젝트 정보: 패키지 그룹명, 현재 빌드 버전, 프로젝트의 간략한 설명입니다.
+group = 'me.sogom'
+version = '0.0.1-SNAPSHOT'
+description = 'Bridge'
+
+// 3. 자바 환경 설정: 프로젝트에서 사용할 JDK 버전을 21로 지정합니다.
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+// 4. 저장소 설정: 아래 명시된 라이브러리들을 다운로드할 공식 메이븐 중앙 저장소입니다.
+repositories {
+    mavenCentral()
+}
+
+// 5. 의존성 설정: 프로젝트 개발과 실행에 실제로 필요한 외부 라이브러리 목록입니다.
+dependencies {
+    // REST API 등 웹 서버 기능을 구축하기 위한 스프링 부트 필수 모듈
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // Google Gemini API 연동을 위한 Spring AI 라이브러리 (상세 버전은 아래 BOM에서 주입됨)
+    implementation 'org.springframework.ai:spring-ai-starter-model-google-genai'
+
+    // 코드 테스트(JUnit 등)를 위한 환경 도구
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// 6. 의존성 관리 (BOM): Spring AI와 관련된 수많은 하위 라이브러리들의 버전을 1.1.3으로 일관되게 맞춰주어 버전 충돌을 방지합니다.
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:1.1.3"
+    }
+}
+
+// 7. 테스트 작업 설정: 빌드 시 테스트 코드를 실행할 때 JUnit 플랫폼을 사용하도록 지정합니다.
+tasks.named('test') {
+    useJUnitPlatform()
+}

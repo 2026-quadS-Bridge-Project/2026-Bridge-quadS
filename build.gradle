@@ -33,6 +33,13 @@ dependencies {
     // 코드 테스트(JUnit 등)를 위한 환경 도구
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // Spring Data JPA (데이터베이스 연결 및 엔티티 관리용)
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // Lombok (Getter, 생성자 등 코드를 줄여주는 용도)
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
 }
 
 // 6. 의존성 관리 (BOM): Spring AI와 관련된 수많은 하위 라이브러리들의 버전을 1.1.3으로 일관되게 맞춰주어 버전 충돌을 방지합니다.

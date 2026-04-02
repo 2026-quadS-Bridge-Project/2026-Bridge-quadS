@@ -40,8 +40,12 @@ dependencies {
     // Lombok (Getter, 생성자 등 코드를 줄여주는 용도)
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
+
     //dotenv-spring-boot-starter(.env 파일을 자동으로 읽어오는 용도)
     implementation 'io.github.cdimascio:dotenv-java:3.0.0'
+
+    // H2 메모리 데이터베이스 (테스트용)
+    runtimeOnly 'com.h2database:h2'
 }
 
 // 6. 의존성 관리 (BOM): Spring AI와 관련된 수많은 하위 라이브러리들의 버전을 1.1.3으로 일관되게 맞춰주어 버전 충돌을 방지합니다.

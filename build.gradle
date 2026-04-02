@@ -42,7 +42,7 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
 
     //dotenv-spring-boot-starter(.env 파일을 자동으로 읽어오는 용도)
-    implementation 'io.github.cdimascio:dotenv-java:3.0.0'
+    implementation 'me.paulschwarz:spring-dotenv:4.0.0' //기존 것은 Java용으로 오류가 나서 변경함
 
     // H2 메모리 데이터베이스 (테스트용)
     runtimeOnly 'com.h2database:h2'

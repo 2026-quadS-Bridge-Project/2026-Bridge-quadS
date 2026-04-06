@@ -44,6 +44,10 @@ dependencies {
     //dotenv-spring-boot-starter(.env 파일을 자동으로 읽어오는 용도)
     implementation 'me.paulschwarz:spring-dotenv:4.0.0' //기존 것은 Java용으로 오류가 나서 변경함
 
+    // Swagger (API 문서 자동 생성 및 UI 제공)
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-api:2.7.0'
+
     // H2 메모리 데이터베이스 (테스트용)
     runtimeOnly 'com.h2database:h2'
 }

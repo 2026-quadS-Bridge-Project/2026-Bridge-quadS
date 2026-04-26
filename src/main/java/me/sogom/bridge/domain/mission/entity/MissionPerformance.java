@@ -26,7 +26,7 @@ public class MissionPerformance {
     private Children child;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "ENUM('PENDING', 'ACCEPTED', 'REJECTED') DEFAULT 'PENDING'")
+    @Column(nullable = false) // 옵션: null 허용 안함, PostgreSQL 문법
     private MissionStatus status; // PENDING, ACCEPTED, REJECTED
 
     @Column(name = "proof_url", length = 500)

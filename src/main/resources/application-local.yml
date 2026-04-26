@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    # 도커로 띄운 PostgreSQL 주소
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: postgres
+    password: ${LOCAL_DB_PASSWORD} # 도커 실행 시 설정한 비밀번호
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      # 테이블 자동 업데이트
+      ddl-auto: update
+    database: postgresql
+    database-platform: org.hibernate.dialect.PostgreSQLDialect

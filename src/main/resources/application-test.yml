@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    # H2를 PostgreSQL 모드로 동작하게 설정 (ERD 호환성)
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      # 테스트 실행 시마다 테이블을 새로 만들고 종료 시 삭제합니다.
+      ddl-auto: create-drop

@@ -4,14 +4,13 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
+import me.sogom.bridge.domain.common.BaseEntity;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "children")
-public class Children {
+public class Children extends BaseEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "children_id")
     private Long id;
@@ -27,7 +26,4 @@ public class Children {
 
     @Column(length = 6)
     private String code; // 자녀 연동 코드
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
 }

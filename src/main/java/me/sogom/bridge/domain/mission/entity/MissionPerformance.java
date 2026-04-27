@@ -1,16 +1,14 @@
 package me.sogom.bridge.domain.mission.entity;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import me.sogom.bridge.domain.common.BaseEntity;
 import me.sogom.bridge.domain.member.entity.Children;
 //mission 수행 내역 entity
 @Entity
 @Getter
-@Setter // 상태 업데이트를 위해 일시적 허용 (실무에선 update 메서드 사용 권장)
+@Builder
+@AllArgsConstructor //@Builder를 쓰기 위한 필수 세트
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "mission_performance")
 public class MissionPerformance extends BaseEntity {
@@ -32,4 +30,7 @@ public class MissionPerformance extends BaseEntity {
 
     @Column(name = "proof_url", length = 500)
     private String proofUrl;
+
+    @Column(name = "reason", columnDefinition = "TEXT") //AI의 분석 근거를 저장할 컬럼 추가
+    private String reason;
 }

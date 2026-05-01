@@ -1,16 +1,16 @@
 package me.sogom.bridge.domain.member.entity;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import me.sogom.bridge.domain.common.BaseEntity;
 
 @Entity
 @Getter
+@Builder
+@AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "children")
-public class Children extends BaseEntity {
+public class Children extends BaseEntity implements Member {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "children_id")
     private Long id;
@@ -18,7 +18,7 @@ public class Children extends BaseEntity {
     @Column(nullable = false, length = 50)
     private String name;
 
-    @Column(nullable = false, length = 12)
+    @Column(nullable = false, length = 50)
     private String email;
 
     @Column(nullable = false)

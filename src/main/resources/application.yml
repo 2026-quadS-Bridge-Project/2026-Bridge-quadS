@@ -26,4 +26,10 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        highlight_sql: true
+        highlight_sql: truejwt:
+  token:
+    secret: ${JWT_SECRET_KEY}
+    expiration:
+      access: 3600000       # 1시간
+      refresh: 1209600000   # 14일
+

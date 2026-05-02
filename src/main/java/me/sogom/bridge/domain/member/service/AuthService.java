@@ -3,16 +3,15 @@ package me.sogom.bridge.domain.member.service;
 import lombok.RequiredArgsConstructor;
 import me.sogom.bridge.domain.member.code.MemberErrorCode;
 import me.sogom.bridge.domain.member.MemberException;
-import me.sogom.bridge.domain.member.dto.AuthResponse;
-import me.sogom.bridge.domain.member.dto.LoginRequest;
-import me.sogom.bridge.domain.member.dto.RefreshRequest;
-import me.sogom.bridge.domain.member.dto.SignUpRequest;
+import me.sogom.bridge.domain.member.dto.req.MemberReqDTO;
+import me.sogom.bridge.domain.member.dto.res.MemberResDTO;
 import me.sogom.bridge.domain.member.entity.Children;
 import me.sogom.bridge.domain.member.entity.Parent;
 import me.sogom.bridge.domain.member.entity.RefreshToken;
 import me.sogom.bridge.domain.member.repository.ChildrenRepository;
 import me.sogom.bridge.domain.member.repository.ParentRepository;
 import me.sogom.bridge.domain.member.repository.RefreshTokenRepository;
+import me.sogom.bridge.domain.member.util.ChildrenCodeGenerator;
 import me.sogom.bridge.global.security.entity.AuthMember;
 import me.sogom.bridge.global.security.entity.MemberRole;
 import me.sogom.bridge.global.security.util.JwtUtil;
@@ -33,7 +32,7 @@ public class AuthService {
     private final JwtUtil jwtUtil;
 
     @Transactional
-    public AuthResponse signUpParent(SignUpRequest request) {
+    public MemberResDTO.AuthResponse signUpParent(MemberReqDTO.SignUpRequest request) {
         checkDuplicateEmail(request.email());
         Parent parent = Parent.builder()
                 .name(request.name())
@@ -41,23 +40,26 @@ public class AuthService {
                 .hash(passwordEncoder.encode(request.password()))
                 .build();
         parentRepository.save(parent);
-        return new AuthResponse(null, null);
+        return new MemberResDTO.AuthResponse(null, null);
     }
 
     @Transactional
-    public AuthResponse signUpChildren(SignUpRequest request) {
+    public MemberResDTO.AuthResponse signUpChildren(MemberReqDTO.SignUpRequest request) {
         checkDuplicateEmail(request.email());
+
+        String code = ChildrenCodeGenerator.generateCode();
         Children children = Children.builder()
                 .name(request.name())
                 .email(request.email())
                 .hash(passwordEncoder.encode(request.password()))
+                .code(code)
                 .build();
         childrenRepository.save(children);
-        return new AuthResponse(null, null);
+        return new MemberResDTO.AuthResponse(null, null);
     }
 
     @Transactional
-    public AuthResponse loginParent(LoginRequest request) {
+    public MemberResDTO.AuthResponse loginParent(MemberReqDTO.LoginRequest request) {
         Parent parent = parentRepository.findByEmail(request.email())
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
         validatePassword(request.password(), parent.getHash());
@@ -65,7 +67,7 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse loginChildren(LoginRequest request) {
+    public MemberResDTO.AuthResponse loginChildren(MemberReqDTO.LoginRequest request) {
         Children children = childrenRepository.findByEmail(request.email())
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
         validatePassword(request.password(), children.getHash());
@@ -73,7 +75,7 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse refresh(RefreshRequest request) {
+    public MemberResDTO.AuthResponse refresh(MemberReqDTO.RefreshRequest request) {
         String tokenValue = request.refreshToken();
 
         if (!jwtUtil.isValid(tokenValue)) {
@@ -93,11 +95,11 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(RefreshRequest request) {
+    public void logout(MemberReqDTO.RefreshRequest request) {
         refreshTokenRepository.deleteByToken(request.refreshToken());
     }
 
-    private AuthResponse issueTokens(AuthMember authMember) {
+    private MemberResDTO.AuthResponse issueTokens(AuthMember authMember) {
         String accessToken = jwtUtil.createAccessToken(authMember);
         String refreshTokenValue = jwtUtil.createRefreshToken(authMember);
 
@@ -111,12 +113,12 @@ public class AuthService {
                 .expiresAt(expiresAt)
                 .build());
 
-        return new AuthResponse(accessToken, refreshTokenValue);
+        return new MemberResDTO.AuthResponse(accessToken, refreshTokenValue);
     }
 
-    private AuthResponse issueAccessTokenOnly(AuthMember authMember) {
+    private MemberResDTO.AuthResponse issueAccessTokenOnly(AuthMember authMember) {
         String accessToken = jwtUtil.createAccessToken(authMember);
-        return new AuthResponse(accessToken, null);
+        return new MemberResDTO.AuthResponse(accessToken, null);
     }
 
     private AuthMember loadAuthMember(String email, MemberRole role) {

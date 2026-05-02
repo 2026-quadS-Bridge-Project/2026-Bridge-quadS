@@ -26,9 +26,11 @@ repositories {
 dependencies {
     // REST API 등 웹 서버 기능을 구축하기 위한 스프링 부트 필수 모듈
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
 
     // Google Gemini API 연동을 위한 Spring AI 라이브러리 (상세 버전은 아래 BOM에서 주입됨)
     implementation 'org.springframework.ai:spring-ai-starter-model-google-genai'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
     // 코드 테스트(JUnit 등)를 위한 환경 도구
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -53,6 +55,16 @@ dependencies {
 
     // PostgreSQL 드라이버
     runtimeOnly 'org.postgresql:postgresql'
+
+    // Security
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    testImplementation 'org.springframework.security:spring-security-test'
+
+    // Jwt
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
+    implementation 'io.jsonwebtoken:jjwt-impl:0.12.3'
+    implementation 'io.jsonwebtoken:jjwt-jackson:0.12.3'
+    implementation 'org.springframework.boot:spring-boot-configuration-processor'
 }
 
 // 6. 의존성 관리 (BOM): Spring AI와 관련된 수많은 하위 라이브러리들의 버전을 1.1.3으로 일관되게 맞춰주어 버전 충돌을 방지합니다.

@@ -1,4 +1,4 @@
-package me.sogom.bridge.domain.member.dto;
+package me.sogom.bridge.domain.member.dto.res;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import org.springframework.lang.Nullable;

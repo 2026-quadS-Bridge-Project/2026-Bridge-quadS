@@ -1,4 +1,4 @@
-package me.sogom.bridge.domain.member.dto;
+package me.sogom.bridge.domain.member.dto.req;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

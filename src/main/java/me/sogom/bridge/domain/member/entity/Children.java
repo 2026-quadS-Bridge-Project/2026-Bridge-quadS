@@ -25,8 +25,11 @@ public class Children extends BaseEntity implements Member {
     @Column(nullable = false)
     private String hash;
 
-    @Column(length = 6)
+    @Column(length = 8)
     private String code; // 자녀 연동 코드
+
+    @Column(length = 100)
+    private String profileImageUrl;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")

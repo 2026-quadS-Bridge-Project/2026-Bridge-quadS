@@ -15,7 +15,8 @@ public enum MemberSuccessCode implements BaseSuccessCode {
     CHILDREN_LOGIN_SUCCESS(HttpStatus.OK, "MEMBER200_CHILDREN_LOGIN", "자녀 로그인에 성공했습니다."),
     REFRESH_TOKEN_SUCCESS(HttpStatus.OK, "MEMBER200_REFRESH", "토큰이 성공적으로 갱신되었습니다."),
     LOGOUT_SUCCESS(HttpStatus.OK, "MEMBER200_LOGOUT", "로그아웃에 성공했습니다."),
-    CHILDREN_REGISTER_SUCCESS(HttpStatus.CREATED, "MEMBER201_CHILDREN_REGISTER", "자녀 등록에 성공했습니다.");
+    CHILDREN_REGISTER_SUCCESS(HttpStatus.CREATED, "MEMBER201_CHILDREN_REGISTER", "자녀 등록에 성공했습니다."),
+    CHILDREN_LIST_SUCCESS(HttpStatus.OK, "MEMBER200_CHILDREN_LIST", "자녀 목록 조회에 성공했습니다.");
 
     private final HttpStatus status;
     private final String code;

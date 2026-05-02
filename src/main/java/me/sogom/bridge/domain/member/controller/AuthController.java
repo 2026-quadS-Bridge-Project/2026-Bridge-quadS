@@ -20,22 +20,22 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/parent/signup")
-    public ApiResponse<AuthResponse> signUpParent(@RequestBody @Valid MemberReqDTO.SignUpRequest request) {
+    public ApiResponse<MemberResDTO.AuthResponse> signUpParent(@RequestBody @Valid MemberReqDTO.SignUpRequest request) {
         return ApiResponse.onSuccess(MemberSuccessCode.PARENT_SIGNUP_SUCCESS, authService.signUpParent(request));
     }
 
     @PostMapping("/children/signup")
-    public ApiResponse<AuthResponse> signUpChildren(@RequestBody @Valid MemberReqDTO.SignUpRequest request) {
+    public ApiResponse<MemberResDTO.AuthResponse> signUpChildren(@RequestBody @Valid MemberReqDTO.SignUpRequest request) {
         return ApiResponse.onSuccess(MemberSuccessCode.CHILDREN_SIGNUP_SUCCESS, authService.signUpChildren(request));
     }
 
     @PostMapping("/parent/login")
-    public ApiResponse<AuthResponse> loginParent(@RequestBody @Valid MemberReqDTO.LoginRequest request) {
+    public ApiResponse<MemberResDTO.AuthResponse> loginParent(@RequestBody @Valid MemberReqDTO.LoginRequest request) {
         return ApiResponse.onSuccess(MemberSuccessCode.PARENT_LOGIN_SUCCESS, authService.loginParent(request));
     }
 
     @PostMapping("/children/login")
-    public ApiResponse<AuthResponse> loginChildren(@RequestBody @Valid MemberReqDTO.LoginRequest request) {
+    public ApiResponse<MemberResDTO.AuthResponse> loginChildren(@RequestBody @Valid MemberReqDTO.LoginRequest request) {
         return ApiResponse.onSuccess(MemberSuccessCode.CHILDREN_LOGIN_SUCCESS, authService.loginChildren(request));
     }
 

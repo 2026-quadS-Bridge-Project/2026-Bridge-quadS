@@ -1,5 +1,6 @@
 package me.sogom.bridge.global.apiPayload;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.AllArgsConstructor;
@@ -10,6 +11,7 @@ import me.sogom.bridge.global.apiPayload.code.BaseSuccessCode;
 @Getter
 @AllArgsConstructor
 @JsonPropertyOrder({"isSuccess", "code", "message", "data"})
+@JsonIgnoreProperties({"success"})
 public class ApiResponse<T> {
 
     @JsonProperty("isSuccess")

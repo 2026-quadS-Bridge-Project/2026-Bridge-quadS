@@ -6,6 +6,7 @@ import me.sogom.bridge.domain.member.code.MemberSuccessCode;
 import me.sogom.bridge.domain.member.dto.req.MemberReqDTO;
 import me.sogom.bridge.domain.member.dto.res.MemberResDTO;
 import me.sogom.bridge.domain.member.service.ParentService;
+import me.sogom.bridge.domain.policy.dto.PolicyReqDTO;
 import me.sogom.bridge.global.apiPayload.ApiResponse;
 import me.sogom.bridge.global.security.entity.AuthMember;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -46,6 +47,21 @@ public class ParentController {
         Long parentId = authMember.getMember().getId();
         List<MemberResDTO.ChildrenInfoResponse> childrenList = parentService.getChildrenList(parentId);
         return ApiResponse.onSuccess(MemberSuccessCode.CHILDREN_LIST_SUCCESS, childrenList);
+    }
+
+    /**
+     * 자녀의 총시간(TimePolicy) 설정
+     * @param authMember 인증된 부모 사용자
+     * @param request 시간 정책 설정 요청 (자녀 ID, 년월, 기본 시간)
+     * @return 설정 성공 응답
+     */
+    @PostMapping("/time-policy")
+    public ApiResponse<Void> setTimePolicy(
+            @AuthenticationPrincipal AuthMember authMember,
+            @RequestBody @Valid PolicyReqDTO.SetTimePolicyRequest request) {
+        Long parentId = authMember.getMember().getId();
+        parentService.setTimePolicy(parentId, request);
+        return ApiResponse.onSuccess(MemberSuccessCode.TIME_POLICY_SET_SUCCESS, null);
     }
 }
 

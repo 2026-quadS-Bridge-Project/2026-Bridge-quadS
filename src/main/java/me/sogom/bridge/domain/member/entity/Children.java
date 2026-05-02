@@ -6,6 +6,7 @@ import me.sogom.bridge.domain.common.BaseEntity;
 
 @Entity
 @Getter
+@Setter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -26,4 +27,8 @@ public class Children extends BaseEntity implements Member {
 
     @Column(length = 6)
     private String code; // 자녀 연동 코드
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private Parent parent;
 }

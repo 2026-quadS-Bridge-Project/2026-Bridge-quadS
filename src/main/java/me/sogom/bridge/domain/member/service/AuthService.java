@@ -3,16 +3,17 @@ package me.sogom.bridge.domain.member.service;
 import lombok.RequiredArgsConstructor;
 import me.sogom.bridge.domain.member.code.MemberErrorCode;
 import me.sogom.bridge.domain.member.MemberException;
-import me.sogom.bridge.domain.member.dto.AuthResponse;
-import me.sogom.bridge.domain.member.dto.LoginRequest;
-import me.sogom.bridge.domain.member.dto.RefreshRequest;
-import me.sogom.bridge.domain.member.dto.SignUpRequest;
+import me.sogom.bridge.domain.member.dto.res.AuthResponse;
+import me.sogom.bridge.domain.member.dto.req.LoginRequest;
+import me.sogom.bridge.domain.member.dto.req.RefreshRequest;
+import me.sogom.bridge.domain.member.dto.req.SignUpRequest;
 import me.sogom.bridge.domain.member.entity.Children;
 import me.sogom.bridge.domain.member.entity.Parent;
 import me.sogom.bridge.domain.member.entity.RefreshToken;
 import me.sogom.bridge.domain.member.repository.ChildrenRepository;
 import me.sogom.bridge.domain.member.repository.ParentRepository;
 import me.sogom.bridge.domain.member.repository.RefreshTokenRepository;
+import me.sogom.bridge.domain.member.util.ChildrenCodeGenerator;
 import me.sogom.bridge.global.security.entity.AuthMember;
 import me.sogom.bridge.global.security.entity.MemberRole;
 import me.sogom.bridge.global.security.util.JwtUtil;
@@ -47,10 +48,13 @@ public class AuthService {
     @Transactional
     public AuthResponse signUpChildren(SignUpRequest request) {
         checkDuplicateEmail(request.email());
+
+        String code = ChildrenCodeGenerator.generateCode();
         Children children = Children.builder()
                 .name(request.name())
                 .email(request.email())
                 .hash(passwordEncoder.encode(request.password()))
+                .code(code)
                 .build();
         childrenRepository.save(children);
         return new AuthResponse(null, null);

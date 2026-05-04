@@ -44,4 +44,6 @@ public class TimePolicy extends BaseEntity {
     public int getTotalAvailableTime() {
         return this.baseTime + this.accumulatedRewardTime;
     }
+
+    public void updateBaseTime(int baseTime) { this.baseTime = baseTime; }
 }

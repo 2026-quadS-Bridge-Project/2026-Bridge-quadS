@@ -28,6 +28,9 @@ public class Children extends BaseEntity implements Member {
     @Column(length = 8)
     private String code; // 자녀 연동 코드
 
+    @Column(length = 4)
+    private String birth; // 자녀 출생연도
+
     @Column(length = 100)
     private String profileImageUrl;
 

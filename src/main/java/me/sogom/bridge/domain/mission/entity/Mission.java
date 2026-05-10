@@ -2,6 +2,8 @@ package me.sogom.bridge.domain.mission.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import me.sogom.bridge.domain.common.BaseEntity;
@@ -10,6 +12,8 @@ import me.sogom.bridge.domain.member.entity.Parent;
 //mission entity
 @Entity
 @Getter
+@Builder
+@AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "mission")
 public class Mission extends BaseEntity {

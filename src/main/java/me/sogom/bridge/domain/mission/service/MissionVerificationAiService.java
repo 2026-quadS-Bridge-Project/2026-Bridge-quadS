@@ -1,6 +1,7 @@
 package me.sogom.bridge.domain.mission.service;
 
 import me.sogom.bridge.domain.mission.dto.AiVerificationResponse;
+import me.sogom.bridge.domain.mission.entity.MissionCategory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
@@ -13,22 +14,34 @@ import java.io.IOException;
 public class MissionVerificationAiService {
 
     private final ChatClient chatClient;
+    private final MissionPromptProvider promptProvider; //프롬프트 제공자 추가
 
-    public MissionVerificationAiService(ChatClient.Builder builder) {
+    //생성자를 통해 PromptProvider 주입
+    public MissionVerificationAiService(ChatClient.Builder builder, MissionPromptProvider promptProvider) {
         this.chatClient = builder.build();
+        this.promptProvider = promptProvider;
     }
 
-    public AiVerificationResponse verifyMissionImage(MultipartFile imageFile, String parentPrompt) throws IOException {
+    //파라미터에 'MissionCategory category' 추가
+    public AiVerificationResponse verifyMissionImage(MultipartFile imageFile, MissionCategory category, String parentPrompt) throws IOException {
 
         // 람다식(u -> u) 안으로 들어가기 전에 미리 getBytes()를 실행
         // 여기서 발생하는 에러는 메서드에 붙은 throws IOException이 처리
         byte[] imageBytes = imageFile.getBytes();
 
-        // 역할과 규칙을 보다 엄격하게 부여
+        //카테고리에 맞는 AI 판독 기준 가져오기
+        String categoryPrompt = promptProvider.getPrompt(category);
 
-        String systemInstruction = """
+        //부모님이 직접 작성한 요구사항이 있다면 합치기 (없으면 카테고리 기본값만 사용)
+        String finalCondition = (parentPrompt != null && !parentPrompt.isBlank())
+                ? "부모님 특별 요청: [" + parentPrompt + "]\n기본 검증 기준: [" + categoryPrompt + "]"
+                : "기본 검증 기준: [" + categoryPrompt + "]";
+
+        // String.format을 이용해 %s 자리에 finalCondition 주입
+        String systemInstruction = String.format("""
     당신은 학생들의 올바른 습관 형성을 돕는 전문적이고 이성적인 'AI 학습 멘토'입니다.
-    부모님이 설정한 미션 통과 기준은 다음과 같습니다: [%s]
+    이번 미션의 통과 기준은 다음과 같습니다:
+    %s
     
     [평가 원칙: 융통성과 변별력의 조화]
     1. 객관적 기준 적용: 미션의 핵심 요소가 누락되었다면 냉정하게 거절(false)하세요. 
@@ -48,7 +61,7 @@ public class MissionVerificationAiService {
     반드시 JSON 형식으로 응답하세요.
     - isAccepted: (true/false)
     - reason: (논리적이고 성숙한 피드백 메시지)
-    """.formatted(parentPrompt);
+    """, finalCondition); // 여기에 주입
 
         return chatClient.prompt()
                 .user(u -> u

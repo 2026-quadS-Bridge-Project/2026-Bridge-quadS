@@ -5,6 +5,7 @@ import me.sogom.bridge.domain.member.entity.Children;
 import me.sogom.bridge.domain.member.repository.ChildrenRepository;
 import me.sogom.bridge.domain.mission.dto.AiVerificationResponse;
 import me.sogom.bridge.domain.mission.entity.Mission;
+import me.sogom.bridge.domain.mission.entity.MissionCategory;
 import me.sogom.bridge.domain.mission.entity.MissionPerformance;
 import me.sogom.bridge.domain.mission.entity.MissionStatus;
 import me.sogom.bridge.domain.mission.exception.MissionErrorCode;
@@ -27,8 +28,7 @@ public class MissionPerformanceService {
     private final MissionVerificationAiService aiService;
 
     @Transactional // 데이터를 DB에 반영하기 위해 반드시 필요
-    public AiVerificationResponse verifyAndSaveMission(Long missionId, Long childId, MultipartFile image, String prompt) throws IOException {
-
+    public AiVerificationResponse verifyAndSaveMission(Long missionId, Long childId, MultipartFile image, String prompt, MissionCategory category) throws IOException {
         //미션과 자녀 정보 조회 (예외 던지기 적용)
         Mission mission = missionRepository.findById(missionId)
                 .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
@@ -42,7 +42,7 @@ public class MissionPerformanceService {
         }
 
         //AI 판독 요청 (기존 MissionVerificationAiService 호출)
-        AiVerificationResponse aiResponse = aiService.verifyMissionImage(image, prompt);
+        AiVerificationResponse aiResponse = aiService.verifyMissionImage(image, category, prompt);
 
         //(Builder 패턴을 사용해서 객체 조립 (아직 이미지 X)
         MissionPerformance performance = MissionPerformance.builder()

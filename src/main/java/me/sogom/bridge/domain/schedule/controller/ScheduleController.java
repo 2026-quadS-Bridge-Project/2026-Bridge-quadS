@@ -2,21 +2,15 @@ package me.sogom.bridge.domain.schedule.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import me.sogom.bridge.domain.schedule.dto.DailyScheduleResponse;
-import me.sogom.bridge.domain.schedule.dto.RoutineRequest;
-import me.sogom.bridge.domain.schedule.dto.TimeExtensionRequest;
-import me.sogom.bridge.domain.schedule.dto.WeeklyTemplateRequest;
+import me.sogom.bridge.domain.schedule.dto.*;
 import me.sogom.bridge.domain.schedule.entity.DailyTimeAllocation;
 import me.sogom.bridge.domain.schedule.entity.WeeklyRoutine;
 import me.sogom.bridge.domain.schedule.service.ScheduleService;
 import me.sogom.bridge.global.apiPayload.ApiResponse;
 import me.sogom.bridge.global.apiPayload.code.GeneralSuccessCode;
-
-// 시큐리티 및 인증 객체 임포트
 import me.sogom.bridge.global.security.entity.AuthMember;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -91,14 +85,20 @@ public class ScheduleController {
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, "고정 일정이 성공적으로 등록되었습니다.");
     }
 
-    //[GET] 자녀의 주간 학원/고정 일정 전체 조회
+    //[GET] 자녀의 주간 학원/고정 일정 전체 조회 (DTO 필터 적용 버전!)
     @GetMapping("/routines")
-    public ApiResponse<List<WeeklyRoutine>> getWeeklyRoutines(
+    public ApiResponse<List<RoutineResponse>> getWeeklyRoutines(
             @AuthenticationPrincipal AuthMember user) {
 
         Long childId = user.asChildren().getId();
         List<WeeklyRoutine> routines = scheduleService.getWeeklyRoutines(childId);
-        return ApiResponse.onSuccess(GeneralSuccessCode.OK, routines);
+
+        // 🌟 거대했던 엔티티 뭉치들을 깔끔한 RoutineResponse DTO 리스트로 변환합니다.
+        List<RoutineResponse> response = routines.stream()
+                .map(RoutineResponse::from)
+                .toList();
+
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, response);
     }
 
     //[DELETE] 학원 고정 일정 삭제

@@ -33,4 +33,10 @@ public class MissionPerformance extends BaseEntity {
 
     @Column(name = "reason", columnDefinition = "TEXT") //AI의 분석 근거를 저장할 컬럼 추가
     private String reason;
+
+    // AI 판독 결과나 부모 수동 확인에 의해 상태와 판독 이유를 변경하는 비즈니스 메서드
+    public void updateStatusAndReason(MissionStatus status, String reason) {
+        this.status = status;
+        this.reason = reason;
+    }
 }

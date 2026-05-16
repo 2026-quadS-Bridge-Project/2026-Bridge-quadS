@@ -46,4 +46,26 @@ public class TimePolicy extends BaseEntity {
     }
 
     public void updateBaseTime(int baseTime) { this.baseTime = baseTime; }
+
+    //기본 제공 시간과 보상 시간을 합쳐서 연장할 시간을 차감 (기본 시간에서 먼저 차감하고, 부족하면 보상 시간에서 차감)
+
+    public void deductAvailableTime(int minutes) {
+        int totalAvailable = this.baseTime + this.accumulatedRewardTime;
+
+        // 전체 가용 시간(기본+보상)이 연장하려는 시간보다 적은지 검문
+        if (totalAvailable < minutes) {
+            throw new IllegalArgumentException("사용 가능한 총 시간(기본+보상)이 부족하여 연장할 수 없습니다.");
+        }
+
+        // 기본 시간이 충분히 남아있다면 기본 시간에서만 차감
+        if (this.baseTime >= minutes) {
+            this.baseTime -= minutes;
+        }
+        // 기본 시간이 모자라다면, 기본 시간을 0으로 만들고 남은 만큼을 보상 시간에서 차감
+        else {
+            int remainder = minutes - this.baseTime;
+            this.baseTime = 0;
+            this.accumulatedRewardTime -= remainder;
+        }
+    }
 }

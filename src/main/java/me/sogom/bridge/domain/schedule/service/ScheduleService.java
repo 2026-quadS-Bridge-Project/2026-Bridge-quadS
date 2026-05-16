@@ -44,6 +44,17 @@ public class ScheduleService {
                     WeeklyTimeDistribution template = weeklyRepository.findByChildIdAndDayOfWeek(childId, dayOfWeek)
                             .orElseThrow(() -> new IllegalArgumentException("해당 요일의 기본 시간표 설정이 없습니다."));
 
+                    // 이번 달 부모 정책 가져오기
+                    String yearMonth = targetDate.format(DateTimeFormatter.ofPattern("yyyy-MM"));
+                    TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
+                            .orElseThrow(() -> new IllegalArgumentException("해당 월의 부모 정책이 설정되지 않았습니다."));
+
+                    // 템플릿에 설정된 설정 시간만큼 기본 시간에서 선차감 진행
+                    policy.deductAvailableTime(template.getBaseMinutes());
+
+                    // 변경된 상태를 DB에 확실하게 즉시 업데이트(UPDATE)
+                    timePolicyRepository.save(policy);
+
                     // 자녀 엔티티 조회
                     Children child = childrenRepository.findById(childId).orElseThrow();
 

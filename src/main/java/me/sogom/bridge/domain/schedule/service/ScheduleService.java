@@ -82,16 +82,36 @@ public class ScheduleService {
         return allocation;
     }
     //자녀가 최초/매주 요일별 기본 가용 시간(템플릿) 설정 및 수정
+    //요일별 기본 템플릿 설정 초과 등록 버그 수정
     @Transactional
     public void updateWeeklyTemplate(Long childId, WeeklyTemplateRequest request) {
+        String yearMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+        TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
+                .orElseThrow(() -> new IllegalArgumentException("해당 월의 부모 정책이 설정되지 않았습니다."));
+
+        //현재 DB에 저장되어 있는 이 자녀의 월~일 전체 기본 틀 시간의 합을 구함
+        List<WeeklyTimeDistribution> allTemplates = weeklyRepository.findAllByChildId(childId);
+
+        int currentWeeklySum = allTemplates.stream()
+                // 지금 수정하려는 요일의 기존 시간은 제외하고 나머지 요일들만 합산
+                .filter(t -> !t.getDayOfWeek().equals(request.getDayOfWeek()))
+                .mapToInt(WeeklyTimeDistribution::getBaseMinutes)
+                .sum();
+
+        //여기에 새로 등록/수정하려는 요일의 시간을 더해봄
+        int expectedWeeklySum = currentWeeklySum + request.getBaseMinutes();
+
+        // 일주일 기본 틀의 합이 부모 저금통의 한도를 초과하면 즉시 차단!
+        if (expectedWeeklySum > policy.getBaseTime()) {
+            throw new IllegalArgumentException("주간 시간표의 총합(" + expectedWeeklySum + "분)이 부모님이 설정한 이번 달 총 가용 시간(" + policy.getBaseTime() + "분)을 초과할 수 없습니다!");
+        }
+
+        // 안전함이 검증되었을 때만 DB에 반영
         WeeklyTimeDistribution weeklyDist = weeklyRepository.findByChildIdAndDayOfWeek(childId, request.getDayOfWeek())
-                .orElseGet(() -> {
-                    Children child = childrenRepository.findById(childId).orElseThrow();
-                    return WeeklyTimeDistribution.builder()
-                            .child(child)
-                            .dayOfWeek(request.getDayOfWeek())
-                            .build();
-                });
+                .orElseGet(() -> WeeklyTimeDistribution.builder()
+                        .child(policy.getChild())
+                        .dayOfWeek(request.getDayOfWeek())
+                        .build());
 
         weeklyDist.updateBaseMinutes(request.getBaseMinutes());
         weeklyRepository.save(weeklyDist);

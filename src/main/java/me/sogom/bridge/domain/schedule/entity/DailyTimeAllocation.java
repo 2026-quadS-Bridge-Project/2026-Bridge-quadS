@@ -52,4 +52,10 @@ public class DailyTimeAllocation extends BaseEntity {
     public int getTotalAvailableTime() {
         return this.baseMinutes + this.extendedMinutes;
     }
+
+    //당일 사용 시간을 실제로 자녀가 사용한 시간으로 최종 정산
+    public void updateToSettledTime(int actualUsedMinutes) {
+        this.baseMinutes = actualUsedMinutes;
+        this.extendedMinutes = 0; // 정산이 끝났으므로 연장 시간 변수는 0으로 리셋
+    }
 }

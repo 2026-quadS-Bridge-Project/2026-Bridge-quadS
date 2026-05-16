@@ -125,4 +125,43 @@ public class ScheduleService {
         WeeklyRoutine routine = routineRepository.findById(routineId).orElseThrow();
         routineRepository.delete(routine);
     }
+    /**
+     하루 마무리 시 실제 사용 시간을 기록하고 남은 시간을 보상 풀로 환불하기
+     * @param actualUsedMinutes 자녀가 오늘 실제로 스마트폰을 사용한 시간 (분 단위)
+     */
+    @Transactional
+    public DailyTimeAllocation settleDailyTime(Long childId, LocalDate targetDate, int actualUsedMinutes) {
+
+        // 1. 오늘의 스케줄 배정 데이터 가져오기
+        DailyTimeAllocation allocation = dailyRepository.findByChildIdAndTargetDate(childId, targetDate)
+                .orElseThrow(() -> new IllegalArgumentException("오늘 생성된 시간표 데이터가 없습니다."));
+
+        // 오늘 자녀에게 주어졌던 총 가용 시간 계산 (기본시간 + 연장된시간)
+        int totalAllocatedTime = allocation.getTotalAvailableTime();
+
+        // 가드 로직: 혹시 실제 사용 시간이 준 시간보다 많으면 연산 오류이므로 방어
+        if (actualUsedMinutes > totalAllocatedTime) {
+            throw new IllegalArgumentException("실제 사용 시간이 할당된 총 시간을 초과할 수 없습니다.");
+        }
+
+        // 남은 시간 계산하기 (할당량 - 실제 사용량)
+        int unusedMinutes = totalAllocatedTime - actualUsedMinutes;
+
+        // 남은 시간이 존재한다면 부모 정책(TimePolicy) 데이터에 환불 절차 진행
+        if (unusedMinutes > 0) {
+            String yearMonth = targetDate.format(DateTimeFormatter.ofPattern("yyyy-MM"));
+            TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
+                    .orElseThrow(() -> new IllegalArgumentException("해당 월의 부모 정책을 찾을 수 없습니다."));
+
+            // TimePolicy의 보상 풀에 남은 시간만큼 플러스(+) 처리
+            policy.refundUnusedTime(unusedMinutes);
+        }
+
+        // 오늘자 할당 기록의 baseMinutes와 extendedMinutes를 정산된 결과에 맞게 재조정
+        // 가장 깔끔한 방법은 오늘 가용시간 자체를 자녀가 실제 사용한 시간으로 락(Lock)을 걸어두는 것
+        // 다음 스케줄 조회 시 정산된 결과가 보이도록 엔티티 값을 세팅
+        allocation.updateToSettledTime(actualUsedMinutes);
+
+        return allocation;
+    }
 }

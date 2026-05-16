@@ -86,4 +86,16 @@ public class ScheduleController {
         scheduleService.deleteRoutine(routineId);
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, "일정이 삭제되었습니다.");
     }
+    //[POST] 자녀의 당일 가용 시간 최종 정산 및 잔여 시간 보상 풀 환불
+    // URL 예시: POST /api/v1/children/1/schedules/settle?actualUsed=100
+    @PostMapping("/settle")
+    public ApiResponse<DailyScheduleResponse> settleDailyTime(
+            @PathVariable Long childId,
+            @RequestParam int actualUsed,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date) {
+
+        DailyTimeAllocation settledAllocation = scheduleService.settleDailyTime(childId, date, actualUsed);
+
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, DailyScheduleResponse.from(settledAllocation));
+    }
 }

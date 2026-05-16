@@ -68,4 +68,11 @@ public class TimePolicy extends BaseEntity {
             this.accumulatedRewardTime -= remainder;
         }
     }
+    //자녀가 당일에 쓰지 않고 남긴 시간을 보상 시간 풀로 다시 환불(적립)해주는 메서드
+    public void refundUnusedTime(int unusedMinutes) {
+        if (unusedMinutes < 0) {
+            throw new IllegalArgumentException("적립할 시간은 음수일 수 없습니다.");
+        }
+        this.accumulatedRewardTime += unusedMinutes;
+    }
 }

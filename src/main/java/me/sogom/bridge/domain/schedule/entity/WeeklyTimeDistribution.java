@@ -34,10 +34,15 @@ public class WeeklyTimeDistribution extends BaseEntity {
     @Column(name = "base_minutes", nullable = false)
     private int baseMinutes; // 요일별 기본 세팅 시간 (분 단위)
 
+    private String yearMonth; // 예: "2026-05"
+    private int weekNumber;   // 1~5 주차
+
     @Builder
-    public WeeklyTimeDistribution(Children child, DayOfWeek dayOfWeek, int baseMinutes) {
+    public WeeklyTimeDistribution(Children child, DayOfWeek dayOfWeek, String yearMonth, int weekNumber, int baseMinutes) {
         this.child = child;
         this.dayOfWeek = dayOfWeek;
+        this.yearMonth = yearMonth;
+        this.weekNumber = weekNumber;
         this.baseMinutes = baseMinutes;
     }
 

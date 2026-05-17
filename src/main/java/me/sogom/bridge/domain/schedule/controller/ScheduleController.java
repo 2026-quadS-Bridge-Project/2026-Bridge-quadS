@@ -109,4 +109,14 @@ public class ScheduleController {
         scheduleService.deleteRoutine(routineId);
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, "일정이 정상적으로 삭제되었습니다.");
     }
+
+    @PostMapping("/weekly-budgets")
+    public ApiResponse<Void> createWeeklyBudgets(
+            @AuthenticationPrincipal AuthMember user,
+            @RequestParam String yearMonth,
+            @RequestBody List<WeeklyBudgetRequest> requests) { //리스트 내부 객체 타입 명시
+
+        scheduleService.createWeeklyBudgets(user.asChildren().getId(), yearMonth, requests);
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, null);
+    }
 }

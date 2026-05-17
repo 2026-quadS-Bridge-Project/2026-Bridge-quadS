@@ -6,11 +6,14 @@ import me.sogom.bridge.domain.member.repository.ChildrenRepository;
 import me.sogom.bridge.domain.policy.entity.TimePolicy;
 import me.sogom.bridge.domain.policy.repository.TimePolicyRepository;
 import me.sogom.bridge.domain.schedule.dto.RoutineRequest;
+import me.sogom.bridge.domain.schedule.dto.WeeklyBudgetRequest;
 import me.sogom.bridge.domain.schedule.dto.WeeklyTemplateRequest;
 import me.sogom.bridge.domain.schedule.entity.DailyTimeAllocation;
+import me.sogom.bridge.domain.schedule.entity.WeeklyBudget;
 import me.sogom.bridge.domain.schedule.entity.WeeklyRoutine;
 import me.sogom.bridge.domain.schedule.entity.WeeklyTimeDistribution;
 import me.sogom.bridge.domain.schedule.repository.DailyTimeAllocationRepository;
+import me.sogom.bridge.domain.schedule.repository.WeeklyBudgetRepository;
 import me.sogom.bridge.domain.schedule.repository.WeeklyRoutineRepository;
 import me.sogom.bridge.domain.schedule.repository.WeeklyTimeDistributionRepository;
 import org.springframework.stereotype.Service;
@@ -30,6 +33,7 @@ public class ScheduleService {
     private final ChildrenRepository childrenRepository;
     private final TimePolicyRepository timePolicyRepository;
     private final WeeklyRoutineRepository routineRepository;
+    private final WeeklyBudgetRepository weeklyBudgetRepository;
 
     //오늘의 실제 제한 시간 조회 (없으면 요일 템플릿에서 동적 복사)
     @Transactional
@@ -96,36 +100,39 @@ public class ScheduleService {
     //요일별 기본 템플릿 설정 초과 등록 버그 수정
     @Transactional
     public void updateWeeklyTemplate(Long childId, WeeklyTemplateRequest request) {
-        String yearMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
-        TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
-                .orElseThrow(() -> new IllegalArgumentException("해당 월의 부모 정책이 설정되지 않았습니다."));
+        // 해당 월/주차에 자녀가 설정해둔 예산(WeeklyBudget) 가져오기
+        WeeklyBudget weeklyBudget = weeklyBudgetRepository.findByChildIdAndYearMonthAndWeekNumber(
+                        childId, request.getYearMonth(), request.getWeekNumber())
+                .orElseThrow(() -> new IllegalArgumentException(request.getWeekNumber() + "주차의 예산이 설정되지 않았습니다. 주차별 예산을 먼저 분배해주세요."));
 
-        //현재 DB에 저장되어 있는 이 자녀의 월~일 전체 기본 틀 시간의 합을 구함
-        List<WeeklyTimeDistribution> allTemplates = weeklyRepository.findAllByChildId(childId);
+        // 해당 주차에 이미 등록된 월~일 템플릿 시간의 합 구하기
+        List<WeeklyTimeDistribution> weekTemplates = weeklyRepository.findAllByChildIdAndYearMonthAndWeekNumber(
+                childId, request.getYearMonth(), request.getWeekNumber());
 
-        int currentWeeklySum = allTemplates.stream()
-                // 지금 수정하려는 요일의 기존 시간은 제외하고 나머지 요일들만 합산
-                .filter(t -> !t.getDayOfWeek().equals(request.getDayOfWeek()))
+        int currentSum = weekTemplates.stream()
+                .filter(t -> !t.getDayOfWeek().equals(request.getDayOfWeek())) // 지금 설정하려는 요일은 제외하고 합산
                 .mapToInt(WeeklyTimeDistribution::getBaseMinutes)
                 .sum();
 
-        //여기에 새로 등록/수정하려는 요일의 시간을 더해봄
-        int expectedWeeklySum = currentWeeklySum + request.getBaseMinutes();
+        int expectedSum = currentSum + request.getBaseMinutes();
 
-        // 일주일 기본 틀의 합이 부모 저금통의 한도를 초과하면 즉시 차단!
-        if (expectedWeeklySum > policy.getBaseTime()) {
-            throw new IllegalArgumentException("주간 시간표의 총합(" + expectedWeeklySum + "분)이 부모님이 설정한 이번 달 총 가용 시간(" + policy.getBaseTime() + "분)을 초과할 수 없습니다!");
+        // 요일 합계가 '해당 주차의 예산'을 넘는지 검증
+        if (expectedSum > weeklyBudget.getAllocatedMinutes()) {
+            throw new IllegalArgumentException(request.getWeekNumber() + "주차의 설정 총합(" + expectedSum + "분)이 이번 주 예산(" + weeklyBudget.getAllocatedMinutes() + "분)을 초과할 수 없습니다.");
         }
 
-        // 안전함이 검증되었을 때만 DB에 반영
-        WeeklyTimeDistribution weeklyDist = weeklyRepository.findByChildIdAndDayOfWeek(childId, request.getDayOfWeek())
+        // 검증 통과 시 DB에 저장 (또는 기존 데이터 업데이트)
+        WeeklyTimeDistribution template = weeklyRepository.findByChildIdAndDayOfWeekAndYearMonthAndWeekNumber(
+                        childId, request.getDayOfWeek(), request.getYearMonth(), request.getWeekNumber())
                 .orElseGet(() -> WeeklyTimeDistribution.builder()
-                        .child(policy.getChild())
+                        .child(weeklyBudget.getChild())
+                        .yearMonth(request.getYearMonth())
+                        .weekNumber(request.getWeekNumber())
                         .dayOfWeek(request.getDayOfWeek())
                         .build());
 
-        weeklyDist.updateBaseMinutes(request.getBaseMinutes());
-        weeklyRepository.save(weeklyDist);
+        template.updateBaseMinutes(request.getBaseMinutes());
+        weeklyRepository.save(template);
     }
 
     //\학원/고정 일정(Routine) 등록
@@ -194,5 +201,37 @@ public class ScheduleService {
         allocation.updateToSettledTime(actualUsedMinutes);
 
         return allocation;
+    }
+    @Transactional
+    public void createWeeklyBudgets(Long childId, String yearMonth, List<WeeklyBudgetRequest> requests) {
+// 1. 부모가 설정한 이번 달 총 가용 시간 조회
+        TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
+                .orElseThrow(() -> new IllegalArgumentException("정책이 없습니다."));
+
+// 2. 자녀가 요청한 1~4주차 시간의 총합 계산
+        int totalRequestedMinutes = requests.stream()
+                .mapToInt(WeeklyBudgetRequest::getAllocatedMinutes)
+                .sum();
+
+// 3. 한 달 총량을 초과하는지 검증
+        if (totalRequestedMinutes > policy.getBaseTime()) {
+            throw new IllegalArgumentException("주차별 분배 시간의 합이 한 달 총량을 초과할 수 없습니다.");
+        }
+
+// 4. 기존 데이터가 있다면 삭제 후 새로 저장 (또는 update 처리)
+        weeklyBudgetRepository.deleteAll(weeklyBudgetRepository.findAllByChildIdAndYearMonth(childId, yearMonth));
+
+        Children child = childrenRepository.findById(childId).orElseThrow();
+
+        List<WeeklyBudget> budgets = requests.stream()
+                .map(req -> WeeklyBudget.builder()
+                        .child(child)
+                        .yearMonth(yearMonth)
+                        .weekNumber(req.getWeekNumber())
+                        .allocatedMinutes(req.getAllocatedMinutes())
+                        .build())
+                .toList();
+
+        weeklyBudgetRepository.saveAll(budgets);
     }
 }

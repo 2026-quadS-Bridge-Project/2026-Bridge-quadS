@@ -9,5 +9,4 @@ public class RoutineRequest {
     private DayOfWeek dayOfWeek;
     private LocalTime startTime;
     private LocalTime endTime;
-    private String title;
 }

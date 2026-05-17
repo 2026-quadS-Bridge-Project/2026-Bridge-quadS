@@ -138,7 +138,7 @@ public class ScheduleService {
                 .dayOfWeek(request.getDayOfWeek())
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
-                .title(request.getTitle())
+                .title("고정 시간") // 프론트에서 받지 않고 서버에서 기본값 할당
                 .build();
 
         routineRepository.save(routine);

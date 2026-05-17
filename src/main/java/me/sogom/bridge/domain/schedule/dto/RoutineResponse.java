@@ -15,7 +15,6 @@ public class RoutineResponse {
     private DayOfWeek dayOfWeek;
     private LocalTime startTime;
     private LocalTime endTime;
-    private String title;
 
     // 엔티티를 안전하고 깔끔한 DTO로 변환해주는 메서드
     public static RoutineResponse from(WeeklyRoutine routine) {
@@ -24,7 +23,6 @@ public class RoutineResponse {
                 .dayOfWeek(routine.getDayOfWeek())
                 .startTime(routine.getStartTime())
                 .endTime(routine.getEndTime())
-                .title(routine.getTitle())
                 .build();
     }
 }

@@ -11,7 +11,8 @@ public enum MissionErrorCode implements BaseErrorCode {
 
     MISSION_NOT_FOUND(HttpStatus.NOT_FOUND, "MISSION404", "해당 미션을 찾을 수 없습니다."),
     AI_PARSE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "MISSION500", "AI 판독 결과를 처리하는 중 오류가 발생했습니다."),
-    UNAUTHORIZED_ACCESS(HttpStatus.FORBIDDEN, "MISSION403", "해당 미션에 대한 수행 권한이 없습니다."); //권한 검증 실패 시 사용
+    UNAUTHORIZED_ACCESS(HttpStatus.FORBIDDEN, "MISSION403", "해당 미션에 대한 수행 권한이 없습니다."), //권한 검증 실패 시 사용
+    MISSION_ALREADY_COMPLETED(HttpStatus.BAD_REQUEST, "MISSION400", "이미 완료된 미션입니다.");
     // 필요할 때마다 여기에 추가 예정
 
     private final HttpStatus status;

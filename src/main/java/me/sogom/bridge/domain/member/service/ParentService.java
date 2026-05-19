@@ -46,7 +46,7 @@ public class ParentService {
 
         // 자녀 정보 업데이트
         children.setParent(parent);
-        children.setBirth(request.birth());
+        children.setBirth(request.childrenBirth());
         children.setProfileImageUrl(request.profileImageUrl());
 
         childrenRepository.save(children);

@@ -6,6 +6,7 @@ import me.sogom.bridge.domain.mission.code.MissionSuccessCode;
 import me.sogom.bridge.domain.mission.dto.AiVerificationResponse;
 import me.sogom.bridge.domain.mission.dto.req.MissionReqDTO;
 import me.sogom.bridge.domain.mission.dto.res.MissionResDTO;
+import me.sogom.bridge.domain.mission.entity.MissionCategory;
 import me.sogom.bridge.domain.mission.service.MissionPerformanceService; // 변경: 통합 서비스 임포트
 import me.sogom.bridge.domain.mission.service.MissionService;
 import me.sogom.bridge.global.apiPayload.ApiResponse;
@@ -44,11 +45,11 @@ public class MissionController {
             @PathVariable("missionId") Long missionId,      // 어떤 미션인지 (경로 변수)
             @RequestParam("childId") Long childId,          // 수행하는 자녀가 누구인지
             @RequestParam("image") MultipartFile image,     // 인증 사진
+            @RequestParam("category") MissionCategory category, //카테고리
             @RequestParam("prompt") String prompt) throws IOException {
 
         // Service에서 권한 검증 -> AI 판독 -> DB 저장(reason 포함)을 한 번에 처리 후 결과 반환
-        AiVerificationResponse result = performanceService.verifyAndSaveMission(missionId, childId, image, prompt);
-
+        AiVerificationResponse result = performanceService.verifyAndSaveMission(missionId, childId, image, prompt, category);
         // APIResponse 포맷으로 반환
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, result);
     }

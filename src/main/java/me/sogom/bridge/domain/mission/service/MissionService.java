@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -62,5 +63,20 @@ public class MissionService {
         missionSettingRepository.save(setting);
 
         return MissionResDTO.CreateMissionResponse.of(mission, setting);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MissionResDTO.MissionSummaryResponse> getParentMissionSummaries(Long parentId, Long childId) {
+        parentRepository.findById(parentId)
+                .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+
+        Children child = childrenRepository.findById(childId)
+                .orElseThrow(() -> new MemberException(MemberErrorCode.CHILDREN_NOT_FOUND));
+
+        if (child.getParent() == null || !child.getParent().getId().equals(parentId)) {
+            throw new MissionException(MissionErrorCode.CHILD_PARENT_MISMATCH);
+        }
+
+        return missionSettingRepository.findMissionSummariesByParentIdAndChildId(parentId, childId);
     }
 }

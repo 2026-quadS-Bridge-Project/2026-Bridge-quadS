@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 @Table(name = "mission_setting")
 public class MissionSetting {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "mission_setting_id")
     private Long id;
 

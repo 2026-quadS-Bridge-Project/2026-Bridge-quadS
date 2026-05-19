@@ -31,7 +31,7 @@ public class MissionService {
     private final ChildrenRepository childrenRepository;
 
     @Transactional
-    public MissionResDTO.CreateMissionResponse createMission(Long parentId, MissionReqDTO.CreateMissionRequest request) {
+    public MissionResDTO.MissionResponse createMission(Long parentId, MissionReqDTO.CreateMissionRequest request) {
 
         Parent parent = parentRepository.findById(parentId)
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
@@ -62,7 +62,7 @@ public class MissionService {
                 .build();
         missionSettingRepository.save(setting);
 
-        return MissionResDTO.CreateMissionResponse.of(mission, setting);
+        return MissionResDTO.MissionResponse.of(mission, setting);
     }
 
     @Transactional(readOnly = true)
@@ -78,5 +78,16 @@ public class MissionService {
         }
 
         return missionSettingRepository.findMissionSummariesByParentIdAndChildId(parentId, childId);
+    }
+
+    @Transactional(readOnly = true)
+    public MissionResDTO.MissionResponse getMissionDetail(Long missionId) {
+        Mission mission = missionRepository.findById(missionId)
+                .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
+
+        MissionSetting setting = missionSettingRepository.findByMissionId(missionId)
+                .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
+
+        return MissionResDTO.MissionResponse.of(mission, setting);
     }
 }

@@ -31,12 +31,12 @@ public class MissionController {
 
     //부모의 미션 등록 API
     @PostMapping
-    public ApiResponse<MissionResDTO.CreateMissionResponse> createMission(
+    public ApiResponse<MissionResDTO.MissionResponse> createMission(
             @AuthenticationPrincipal AuthMember authMember,
             @RequestBody @Valid MissionReqDTO.CreateMissionRequest request) {
 
         Long parentId = authMember.asParent().getId();
-        MissionResDTO.CreateMissionResponse response = missionService.createMission(parentId, request);
+        MissionResDTO.MissionResponse response = missionService.createMission(parentId, request);
         return ApiResponse.onSuccess(MissionSuccessCode.MISSION_CREATE_SUCCESS, response);
     }
 
@@ -48,6 +48,15 @@ public class MissionController {
 
         Long parentId = authMember.asParent().getId();
         List<MissionResDTO.MissionSummaryResponse> response = missionService.getParentMissionSummaries(parentId, childId);
+        return ApiResponse.onSuccess(MissionSuccessCode.MISSION_LIST_SUCCESS, response);
+    }
+
+    //미션 상세정보 조회 API
+    @GetMapping("/{missionId}")
+    public ApiResponse<MissionResDTO.MissionResponse> getMissionDetail(
+            @PathVariable("missionId") Long missionId) {
+
+        MissionResDTO.MissionResponse response = missionService.getMissionDetail(missionId);
         return ApiResponse.onSuccess(MissionSuccessCode.MISSION_LIST_SUCCESS, response);
     }
 

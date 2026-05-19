@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import me.sogom.bridge.domain.mission.code.MissionSuccessCode;
 import me.sogom.bridge.domain.mission.dto.AiVerificationResponse;
 import me.sogom.bridge.domain.mission.dto.req.MissionReqDTO;
+import me.sogom.bridge.domain.mission.dto.res.MissionPerformanceResDTO;
 import me.sogom.bridge.domain.mission.dto.res.MissionResDTO;
 import me.sogom.bridge.domain.mission.entity.MissionCategory;
 import me.sogom.bridge.domain.mission.service.MissionPerformanceService; // 변경: 통합 서비스 임포트
@@ -73,5 +74,16 @@ public class MissionController {
         AiVerificationResponse result = performanceService.verifyAndSaveMission(missionId, childId, image, prompt, category);
         // APIResponse 포맷으로 반환
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, result);
+    }
+
+    // 미션 수행 내역 조회 API
+    @GetMapping("/{missionId}/performance")
+    public ApiResponse<MissionPerformanceResDTO.MissionPerformanceResponse> getMissionPerformance(
+            @PathVariable("missionId") Long missionId,
+            @AuthenticationPrincipal AuthMember authMember) {
+
+        Long parentId = authMember.asParent().getId();
+        MissionPerformanceResDTO.MissionPerformanceResponse response = performanceService.getMissionPerformance(missionId, parentId);
+        return ApiResponse.onSuccess(MissionSuccessCode.MISSION_PERFORMANCE_RETRIEVE_SUCCESS, response);
     }
 }

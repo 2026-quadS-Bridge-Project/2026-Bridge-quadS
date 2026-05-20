@@ -10,7 +10,7 @@ import me.sogom.bridge.domain.mission.entity.VerificationType;
 public class MissionResDTO {
 
     @Builder
-    public record CreateMissionResponse(
+    public record MissionResponse(
             Long missionId,
             Long childId,
             String title,
@@ -20,8 +20,8 @@ public class MissionResDTO {
             int reward,
             String description
     ) {
-        public static CreateMissionResponse of(Mission mission, MissionSetting setting) {
-            return CreateMissionResponse.builder()
+        public static MissionResponse of(Mission mission, MissionSetting setting) {
+            return MissionResponse.builder()
                     .missionId(mission.getId())
                     .childId(mission.getChild().getId())
                     .title(mission.getTitle())
@@ -40,6 +40,5 @@ public class MissionResDTO {
             String title,
             MissionCategory category,
             int reward
-    ) {
-    }
+    ) {}
 }

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import me.sogom.bridge.domain.member.entity.Children;
 import me.sogom.bridge.domain.member.repository.ChildrenRepository;
 import me.sogom.bridge.domain.mission.dto.AiVerificationResponse;
+import me.sogom.bridge.domain.mission.dto.res.MissionPerformanceResDTO;
 import me.sogom.bridge.domain.mission.entity.*;
 import me.sogom.bridge.domain.mission.exception.MissionErrorCode;
 import me.sogom.bridge.domain.mission.exception.MissionException;
@@ -110,5 +111,21 @@ public class MissionPerformanceService {
 
         //프론트엔드에게 돌려줄 AI 응답 반환
         return aiResponse;
+    }
+
+    @Transactional(readOnly = true)
+    public MissionPerformanceResDTO.MissionPerformanceResponse getMissionPerformance(Long missionId, Long parentId) {
+
+        Mission mission = missionRepository.findById(missionId)
+                .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
+
+        if (!mission.getParent().getId().equals(parentId)) {
+            throw new MissionException(MissionErrorCode.UNAUTHORIZED_ACCESS);
+        }
+
+        MissionPerformance performance = performanceRepository.findTopByMissionIdOrderByIdDesc(missionId)
+                .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
+
+        return MissionPerformanceResDTO.MissionPerformanceResponse.of(performance);
     }
 }

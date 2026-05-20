@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import me.sogom.bridge.domain.common.BaseEntity;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,7 +29,24 @@ public class Parent extends BaseEntity implements Member {
     @Column(nullable = false)
     private String hash;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private MemberStatus status = MemberStatus.ACTIVE;
+
+    @Column
+    private LocalDateTime passwordChangedAt;
+
     @OneToMany(mappedBy = "parent", cascade = CascadeType.REMOVE, orphanRemoval = true)
     @Builder.Default
     private List<Children> children = new ArrayList<>();
+
+    public void changePassword(String newHash, LocalDateTime changedAt) {
+        this.hash = newHash;
+        this.passwordChangedAt = changedAt;
+    }
+
+    public void withdraw() {
+        this.status = MemberStatus.WITHDRAWN;
+    }
 }

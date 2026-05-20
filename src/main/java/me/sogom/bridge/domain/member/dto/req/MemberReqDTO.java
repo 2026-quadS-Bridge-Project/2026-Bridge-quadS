@@ -38,6 +38,18 @@ public class MemberReqDTO {
             String password
     ) {}
 
+    public record ChangePasswordRequest(
+            @NotBlank(message = "기존 비밀번호를 입력해 주세요.")
+            String oldPassword,
+
+            @NotBlank(message = "새 비밀번호를 입력해 주세요.")
+            @Pattern(
+                    regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?]).{12,15}$",
+                    message = "비밀번호는 영문 대소문자, 숫자, 특수문자를 포함한 12~15자여야 합니다."
+            )
+            String newPassword
+    ) {}
+
     public record RegisterChildRequest(
 
             @NotBlank(message = "자녀 이름을 입력해 주세요.")

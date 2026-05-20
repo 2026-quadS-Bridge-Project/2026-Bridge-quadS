@@ -6,6 +6,7 @@ import me.sogom.bridge.domain.member.MemberException;
 import me.sogom.bridge.domain.member.dto.req.MemberReqDTO;
 import me.sogom.bridge.domain.member.dto.res.MemberResDTO;
 import me.sogom.bridge.domain.member.entity.Children;
+import me.sogom.bridge.domain.member.entity.MemberStatus;
 import me.sogom.bridge.domain.member.entity.Parent;
 import me.sogom.bridge.domain.member.entity.RefreshToken;
 import me.sogom.bridge.domain.member.repository.ChildrenRepository;
@@ -62,6 +63,7 @@ public class AuthService {
     public MemberResDTO.AuthResponse loginParent(MemberReqDTO.LoginRequest request) {
         Parent parent = parentRepository.findByEmail(request.email())
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+        validateActive(parent.getStatus());
         validatePassword(request.password(), parent.getHash());
         return issueTokens(new AuthMember(parent, MemberRole.PARENT));
     }
@@ -70,6 +72,7 @@ public class AuthService {
     public MemberResDTO.AuthResponse loginChildren(MemberReqDTO.LoginRequest request) {
         Children children = childrenRepository.findByEmail(request.email())
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+        validateActive(children.getStatus());
         validatePassword(request.password(), children.getHash());
         return issueTokens(new AuthMember(children, MemberRole.CHILDREN));
     }
@@ -125,10 +128,12 @@ public class AuthService {
         if (role == MemberRole.PARENT) {
             Parent parent = parentRepository.findByEmail(email)
                     .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+            validateActive(parent.getStatus());
             return new AuthMember(parent, MemberRole.PARENT);
         }
         Children children = childrenRepository.findByEmail(email)
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+        validateActive(children.getStatus());
         return new AuthMember(children, MemberRole.CHILDREN);
     }
 
@@ -141,6 +146,81 @@ public class AuthService {
     private void validatePassword(String rawPassword, String encodedPassword) {
         if (!passwordEncoder.matches(rawPassword, encodedPassword)) {
             throw new MemberException(MemberErrorCode.INVALID_PASSWORD);
+        }
+    }
+
+    private void validateActive(MemberStatus status) {
+        if (status != null && status != MemberStatus.ACTIVE) {
+            throw new MemberException(MemberErrorCode.MEMBER_INACTIVE);
+        }
+    }
+
+    @Transactional
+    public void changePassword(AuthMember authMember, MemberReqDTO.ChangePasswordRequest request) {
+        if (authMember.getRole() == MemberRole.PARENT) {
+            Parent parent = parentRepository.findByEmail(authMember.getUsername())
+                    .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+            validatePassword(request.oldPassword(), parent.getHash());
+            validateNewPasswordNotSame(request.newPassword(), parent.getHash());
+            validatePasswordChangeCooldown(parent.getPasswordChangedAt());
+            parent.changePassword(passwordEncoder.encode(request.newPassword()), LocalDateTime.now());
+            return;
+        }
+        Children children = childrenRepository.findByEmail(authMember.getUsername())
+                .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+        validatePassword(request.oldPassword(), children.getHash());
+        validateNewPasswordNotSame(request.newPassword(), children.getHash());
+        validatePasswordChangeCooldown(children.getPasswordChangedAt());
+        children.changePassword(passwordEncoder.encode(request.newPassword()), LocalDateTime.now());
+    }
+
+    @Transactional
+    public void withdraw(AuthMember authMember) {
+        if (authMember.getRole() == MemberRole.PARENT) {
+            Parent parent = parentRepository.findByEmail(authMember.getUsername())
+                    .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+
+            detachChildrenAsDormant(parent);
+            parent.withdraw();
+            refreshTokenRepository.deleteByEmail(parent.getEmail());
+            return;
+        }
+        Children children = childrenRepository.findByEmail(authMember.getUsername())
+                .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+
+        detachFromParent(children);
+        children.withdraw();
+        refreshTokenRepository.deleteByEmail(children.getEmail());
+    }
+
+    private void validateNewPasswordNotSame(String newPassword, String encodedPassword) {
+        if (passwordEncoder.matches(newPassword, encodedPassword)) {
+            throw new MemberException(MemberErrorCode.PASSWORD_SAME_AS_OLD);
+        }
+    }
+
+    private void validatePasswordChangeCooldown(LocalDateTime lastChangedAt) {
+        if (lastChangedAt != null && lastChangedAt.isAfter(LocalDateTime.now().minusHours(24))) {
+            throw new MemberException(MemberErrorCode.PASSWORD_CHANGE_TOO_SOON);
+        }
+    }
+
+    // 부모 탈퇴 시, 자녀는 부모와의 연결 해제 + 코드 초기화 + 휴면 상태로 변경
+    private void detachChildrenAsDormant(Parent parent) {
+        for (Children child : java.util.List.copyOf(parent.getChildren())) {
+            child.setParent(null);
+            child.setCode(null);
+            child.markDormant();
+        }
+        parent.getChildren().clear();
+    }
+
+    // 자녀 탈퇴 시, 부모와의 연결 해제
+    private void detachFromParent(Children child) {
+        Parent parent = child.getParent();
+        if (parent != null) {
+            parent.getChildren().remove(child);
+            child.setParent(null);
         }
     }
 }

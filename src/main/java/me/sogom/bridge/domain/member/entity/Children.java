@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import me.sogom.bridge.domain.common.BaseEntity;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @Setter
@@ -25,6 +27,14 @@ public class Children extends BaseEntity implements Member {
     @Column(nullable = false)
     private String hash;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private MemberStatus status = MemberStatus.ACTIVE;
+
+    @Column
+    private LocalDateTime passwordChangedAt;
+
     @Column(length = 8)
     private String code; // 자녀 연동 코드
 
@@ -37,4 +47,19 @@ public class Children extends BaseEntity implements Member {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private Parent parent;
+
+    public void changePassword(String newHash, LocalDateTime changedAt) {
+        this.hash = newHash;
+        this.passwordChangedAt = changedAt;
+    }
+
+    public void markDormant() {
+        this.status = MemberStatus.DORMANT;
+    }
+
+    public void withdraw() {
+        this.status = MemberStatus.WITHDRAWN;
+        this.code = null;
+        this.parent = null;
+    }
 }

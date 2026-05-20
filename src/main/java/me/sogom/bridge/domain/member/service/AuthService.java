@@ -143,4 +143,35 @@ public class AuthService {
             throw new MemberException(MemberErrorCode.INVALID_PASSWORD);
         }
     }
+
+    @Transactional
+    public void changePassword(AuthMember authMember, MemberReqDTO.ChangePasswordRequest request) {
+        if (authMember.getRole() == MemberRole.PARENT) {
+            Parent parent = parentRepository.findByEmail(authMember.getUsername())
+                    .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+            validatePassword(request.oldPassword(), parent.getHash());
+            validateNewPasswordNotSame(request.newPassword(), parent.getHash());
+            validatePasswordChangeCooldown(parent.getPasswordChangedAt());
+            parent.changePassword(passwordEncoder.encode(request.newPassword()), LocalDateTime.now());
+            return;
+        }
+        Children children = childrenRepository.findByEmail(authMember.getUsername())
+                .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+        validatePassword(request.oldPassword(), children.getHash());
+        validateNewPasswordNotSame(request.newPassword(), children.getHash());
+        validatePasswordChangeCooldown(children.getPasswordChangedAt());
+        children.changePassword(passwordEncoder.encode(request.newPassword()), LocalDateTime.now());
+    }
+
+    private void validateNewPasswordNotSame(String newPassword, String encodedPassword) {
+        if (passwordEncoder.matches(newPassword, encodedPassword)) {
+            throw new MemberException(MemberErrorCode.PASSWORD_SAME_AS_OLD);
+        }
+    }
+
+    private void validatePasswordChangeCooldown(LocalDateTime lastChangedAt) {
+        if (lastChangedAt != null && lastChangedAt.isAfter(LocalDateTime.now().minusHours(24))) {
+            throw new MemberException(MemberErrorCode.PASSWORD_CHANGE_TOO_SOON);
+        }
+    }
 }

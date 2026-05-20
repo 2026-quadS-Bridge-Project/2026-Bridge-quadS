@@ -55,6 +55,9 @@ public class MemberReqDTO {
             @NotBlank(message = "자녀 이름을 입력해 주세요.")
             String childrenName,
 
+            @NotBlank(message = "자녀 출생연도를 입력해 주세요.")
+            String childrenBirth,
+
             @NotBlank(message = "자녀 코드를 입력해 주세요.")
             String childrenCode,
 

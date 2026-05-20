@@ -19,6 +19,7 @@ public enum MemberErrorCode implements BaseErrorCode {
     PASSWORD_SAME_AS_OLD(HttpStatus.CONFLICT, "MEMBER409_PASSWORD_SAME", "새 비밀번호가 기존 비밀번호와 동일합니다."),
     PASSWORD_CHANGE_TOO_SOON(HttpStatus.TOO_MANY_REQUESTS, "MEMBER429_PASSWORD", "비밀번호는 24시간 내에 최대 1회만 변경할 수 있습니다."),
     MEMBER_INACTIVE(HttpStatus.FORBIDDEN, "MEMBER403_INACTIVE", "비활성화된 계정입니다.");
+    CHILDREN_PARENT_MISMATCH(HttpStatus.UNAUTHORIZED, "MEMBER401_CHILDREN", "자녀와 부모의 연결이 올바르지 않습니다.");
 
     private final HttpStatus status;
     private final String code;

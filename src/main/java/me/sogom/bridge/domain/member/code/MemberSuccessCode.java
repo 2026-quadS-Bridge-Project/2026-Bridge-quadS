@@ -19,6 +19,7 @@ public enum MemberSuccessCode implements BaseSuccessCode {
     CHILDREN_LIST_SUCCESS(HttpStatus.OK, "MEMBER200_CHILDREN_LIST", "자녀 목록 조회에 성공했습니다."),
     PASSWORD_CHANGE_SUCCESS(HttpStatus.OK, "MEMBER200_PASSWORD_CHANGE", "비밀번호 변경에 성공했습니다."),
     MEMBER_WITHDRAW_SUCCESS(HttpStatus.OK, "MEMBER200_WITHDRAW", "회원 탈퇴에 성공했습니다.");
+    TIME_POLICY_SET_SUCCESS(HttpStatus.CREATED, "MEMBER201_TIME_POLICY_SET", "자녀 총시간 설정에 성공했습니다.");
 
     private final HttpStatus status;
     private final String code;

@@ -27,6 +27,11 @@ public class Children extends BaseEntity implements Member {
     @Column(nullable = false)
     private String hash;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private MemberStatus status = MemberStatus.ACTIVE;
+
     @Column
     private LocalDateTime passwordChangedAt;
 
@@ -43,5 +48,15 @@ public class Children extends BaseEntity implements Member {
     public void changePassword(String newHash, LocalDateTime changedAt) {
         this.hash = newHash;
         this.passwordChangedAt = changedAt;
+    }
+
+    public void markDormant() {
+        this.status = MemberStatus.DORMANT;
+    }
+
+    public void withdraw() {
+        this.status = MemberStatus.WITHDRAWN;
+        this.code = null;
+        this.parent = null;
     }
 }

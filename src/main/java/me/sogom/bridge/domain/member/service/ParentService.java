@@ -6,6 +6,7 @@ import me.sogom.bridge.domain.member.MemberException;
 import me.sogom.bridge.domain.member.dto.req.MemberReqDTO;
 import me.sogom.bridge.domain.member.dto.res.MemberResDTO;
 import me.sogom.bridge.domain.member.entity.Children;
+import me.sogom.bridge.domain.member.entity.MemberStatus;
 import me.sogom.bridge.domain.member.entity.Parent;
 import me.sogom.bridge.domain.member.repository.ChildrenRepository;
 import me.sogom.bridge.domain.member.repository.ParentRepository;
@@ -32,7 +33,7 @@ public class ParentService {
         Parent parent = parentRepository.findById(parentId)
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
 
-        Children children = childrenRepository.findByCode(request.childrenCode())
+        Children children = childrenRepository.findByCodeAndStatus(request.childrenCode(), MemberStatus.ACTIVE)
                 .orElseThrow(() -> new MemberException(MemberErrorCode.CHILDREN_NOT_FOUND));
 
         // 이미 다른 부모와 연결된 자녀인지 확인

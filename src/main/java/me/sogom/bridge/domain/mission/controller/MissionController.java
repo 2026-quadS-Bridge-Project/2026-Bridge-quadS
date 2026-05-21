@@ -86,4 +86,37 @@ public class MissionController {
         MissionPerformanceResDTO.MissionPerformanceResponse response = performanceService.getMissionPerformance(missionId, parentId);
         return ApiResponse.onSuccess(MissionSuccessCode.MISSION_PERFORMANCE_RETRIEVE_SUCCESS, response);
     }
+
+    // 부모의 미션 승인 API
+    @PatchMapping("/performances/{performanceId}/approve")
+    public ApiResponse<String> approveMission(
+            @PathVariable Long performanceId,
+            @AuthenticationPrincipal AuthMember authMember) {
+
+        Long parentId = authMember.asParent().getId();
+
+        performanceService.approveMission(performanceId, parentId);
+
+        return ApiResponse.onSuccess(
+                GeneralSuccessCode.OK,
+                "미션 승인 완료"
+        );
+    }
+
+    // 부모의 미션 거절 API
+    @PatchMapping("/performances/{performanceId}/reject")
+    public ApiResponse<String> rejectMission(
+            @PathVariable Long performanceId,
+            @AuthenticationPrincipal AuthMember authMember) {
+
+        Long parentId = authMember.asParent().getId();
+
+        performanceService.rejectMission(performanceId, parentId);
+
+        return ApiResponse.onSuccess(
+                GeneralSuccessCode.OK,
+                "미션 거절 완료"
+        );
+    }
+
 }

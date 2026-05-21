@@ -64,6 +64,62 @@ public class MissionPerformanceService {
                 .build();
         performanceRepository.save(performance);
 
+        // 미션 설정 정보 조회
+        MissionSetting setting = missionSettingRepository.findByMissionId(missionId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 미션의 설정 정보를 찾을 수 없습니다."));
+
+        // 미션 인증 방식 조회
+        VerificationType verificationType = setting.getVerificationType();
+
+        // 부모 확인 방식인 경우 부모 승인 대기 상태로 유지
+        if (verificationType == VerificationType.PARENT) {
+
+            performance.updateStatusAndReason(
+                    MissionStatus.PENDING,
+                    "부모님 확인 대기중입니다."
+            );
+
+            performanceRepository.save(performance);
+
+            return new AiVerificationResponse(
+                    false,
+                    "부모님 확인 대기중입니다."
+            );
+        }
+
+        // 자녀 확인 방식인 경우 즉시 승인 처리
+        if (verificationType == VerificationType.CHILD) {
+
+            performance.updateStatusAndReason(
+                    MissionStatus.ACCEPTED,
+                    "자녀 확인 방식으로 승인되었습니다."
+            );
+
+            // 해당 미션에 걸려있는 보상 시간 조회
+            int rewardTime = setting.getReward();
+
+            // 현재 날짜 기준 년월 조회
+            String currentYearMonth = YearMonth.now().toString();
+
+            // 자녀의 이번 달 시간 정책 조회
+            TimePolicy timePolicy = timePolicyRepository
+                    .findByChildIdAndYearMonth(childId, currentYearMonth)
+                    .orElseThrow(() ->
+                            new IllegalArgumentException("이번 달에 설정된 자녀의 시간 정책(TimePolicy)이 없습니다."));
+
+            // 보상 시간 지급
+            timePolicy.addReward(rewardTime);
+
+            timePolicyRepository.save(timePolicy);
+
+            performanceRepository.save(performance);
+
+            return new AiVerificationResponse(
+                    true,
+                    "미션 완료로 보상 시간이 지급되었습니다."
+            );
+        }
+
         // try-catch 블록 내부와 외부 모두에서 사용하기 위해 변수를 미리 선언합니다.
         AiVerificationResponse aiResponse;
 
@@ -80,8 +136,7 @@ public class MissionPerformanceService {
             // 미션 판독 결과가 성공(ACCEPTED)일 때만 실시간 보상 시간 정산 진행
             if (finalStatus == MissionStatus.ACCEPTED) {
                 // 해당 미션에 걸려있는 보상 시간(reward) 가져오기
-                MissionSetting setting = missionSettingRepository.findByMissionId(missionId)
-                        .orElseThrow(() -> new IllegalArgumentException("해당 미션의 설정 정보를 찾을 수 없습니다."));
+
                 int rewardTime = setting.getReward();
 
                 // 현재 날짜 기준 년월 구하기 (예: "2026-05")
@@ -128,4 +183,80 @@ public class MissionPerformanceService {
 
         return MissionPerformanceResDTO.MissionPerformanceResponse.of(performance);
     }
+
+    @Transactional
+    public void approveMission(Long performanceId, Long parentId) {
+
+        MissionPerformance performance = performanceRepository.findById(performanceId)
+                .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
+
+        Mission mission = performance.getMission();
+
+        // 부모 권한 검증
+        if (!mission.getParent().getId().equals(parentId)) {
+            throw new MissionException(MissionErrorCode.UNAUTHORIZED_ACCESS);
+        }
+
+        // 대기 상태인 미션만 승인 가능
+        if (performance.getStatus() != MissionStatus.PENDING) {
+            throw new IllegalStateException("대기 상태인 미션만 승인할 수 있습니다.");
+        }
+
+        performance.updateStatusAndReason(
+                MissionStatus.ACCEPTED,
+                "부모님이 미션을 승인했습니다."
+        );
+
+        // 해당 미션의 설정 정보 조회
+        MissionSetting setting = missionSettingRepository.findByMissionId(mission.getId())
+                .orElseThrow(() -> new IllegalArgumentException("해당 미션의 설정 정보를 찾을 수 없습니다."));
+
+        int rewardTime = setting.getReward();
+
+        // 현재 날짜 기준 년월 조회
+        String currentYearMonth = YearMonth.now().toString();
+
+        // 자녀의 이번 달 시간 정책 조회
+        TimePolicy timePolicy = timePolicyRepository
+                .findByChildIdAndYearMonth(
+                        performance.getChild().getId(),
+                        currentYearMonth
+                )
+                .orElseThrow(() ->
+                        new IllegalArgumentException("이번 달에 설정된 자녀의 시간 정책(TimePolicy)이 없습니다."));
+
+        // 보상 시간 지급
+        timePolicy.addReward(rewardTime);
+
+        timePolicyRepository.save(timePolicy);
+
+        performanceRepository.save(performance);
+    }
+
+    @Transactional
+    public void rejectMission(Long performanceId, Long parentId) {
+
+        MissionPerformance performance = performanceRepository.findById(performanceId)
+                .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
+
+        Mission mission = performance.getMission();
+
+        // 부모 권한 검증
+        if (!mission.getParent().getId().equals(parentId)) {
+            throw new MissionException(MissionErrorCode.UNAUTHORIZED_ACCESS);
+        }
+
+        // 대기 상태인 미션만 거절 가능
+        if (performance.getStatus() != MissionStatus.PENDING) {
+            throw new IllegalStateException("대기 상태인 미션만 거절할 수 있습니다.");
+        }
+
+        performance.updateStatusAndReason(
+                MissionStatus.REJECTED,
+                "부모님이 미션을 거절했습니다."
+        );
+
+        performanceRepository.save(performance);
+    }
+
 }

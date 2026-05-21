@@ -5,6 +5,7 @@ import me.sogom.bridge.domain.notification.dto.res.NotificationResDTO;
 import me.sogom.bridge.domain.notification.entity.Notification;
 import me.sogom.bridge.domain.notification.entity.NotificationType;
 import me.sogom.bridge.domain.notification.repository.NotificationRepository;
+import me.sogom.bridge.global.security.entity.MemberRole;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,7 @@ public class NotificationService {
     @Transactional
     public void createNotification(
             Long memberId,
+            MemberRole memberRole,
             String title,
             String content,
             NotificationType notificationType
@@ -27,6 +29,7 @@ public class NotificationService {
 
         Notification notification = Notification.builder()
                 .memberId(memberId)
+                .memberRole(memberRole)
                 .title(title)
                 .content(content)
                 .isRead(false)
@@ -38,9 +41,16 @@ public class NotificationService {
 
     // 회원의 알림 목록 조회
     @Transactional(readOnly = true)
-    public List<NotificationResDTO.NotificationResponse> getNotifications(Long memberId) {
+    public List<NotificationResDTO.NotificationResponse> getNotifications(
+            Long memberId,
+            MemberRole memberRole
+    ) {
 
-        return notificationRepository.findAllByMemberIdOrderByCreatedAtDesc(memberId)
+        return notificationRepository
+                .findAllByMemberIdAndMemberRoleOrderByCreatedAtDesc(
+                        memberId,
+                        memberRole
+                )
                 .stream()
                 .map(NotificationResDTO.NotificationResponse::of)
                 .toList();
@@ -48,13 +58,19 @@ public class NotificationService {
 
     // 알림 읽음 처리
     @Transactional
-    public void readNotification(Long notificationId, Long memberId) {
+    public void readNotification(
+            Long notificationId,
+            Long memberId,
+            MemberRole memberRole
+    ) {
 
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new IllegalArgumentException("알림을 찾을 수 없습니다."));
 
         // 본인의 알림만 읽음 처리 가능
-        if (!notification.getMemberId().equals(memberId)) {
+        if (!notification.getMemberId().equals(memberId)
+                || !notification.getMemberRole().equals(memberRole)) {
+
             throw new IllegalArgumentException("본인의 알림만 읽을 수 있습니다.");
         }
 
@@ -63,13 +79,19 @@ public class NotificationService {
 
     // 알림 삭제
     @Transactional
-    public void deleteNotification(Long notificationId, Long memberId) {
+    public void deleteNotification(
+            Long notificationId,
+            Long memberId,
+            MemberRole memberRole
+    ) {
 
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new IllegalArgumentException("알림을 찾을 수 없습니다."));
 
         // 본인의 알림만 삭제 가능
-        if (!notification.getMemberId().equals(memberId)) {
+        if (!notification.getMemberId().equals(memberId)
+                || !notification.getMemberRole().equals(memberRole)) {
+
             throw new IllegalArgumentException("본인의 알림만 삭제할 수 있습니다.");
         }
 

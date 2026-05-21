@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import me.sogom.bridge.domain.common.BaseEntity;
+import me.sogom.bridge.global.security.entity.MemberRole;
 
 @Entity
 @Getter
@@ -20,6 +21,11 @@ public class Notification extends BaseEntity {
     // 알림 수신 회원 ID
     @Column(nullable = false)
     private Long memberId;
+
+    // 알림 수신 회원 역할
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private MemberRole memberRole;
 
     // 알림 제목
     @Column(nullable = false)
@@ -41,12 +47,14 @@ public class Notification extends BaseEntity {
     @Builder
     public Notification(
             Long memberId,
+            MemberRole memberRole,
             String title,
             String content,
             Boolean isRead,
             NotificationType notificationType
     ) {
         this.memberId = memberId;
+        this.memberRole = memberRole;
         this.title = title;
         this.content = content;
         this.isRead = isRead;

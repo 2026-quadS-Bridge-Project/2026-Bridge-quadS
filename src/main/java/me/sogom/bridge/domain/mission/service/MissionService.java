@@ -15,6 +15,9 @@ import me.sogom.bridge.domain.mission.exception.MissionErrorCode;
 import me.sogom.bridge.domain.mission.exception.MissionException;
 import me.sogom.bridge.domain.mission.repository.MissionRepository;
 import me.sogom.bridge.domain.mission.repository.MissionSettingRepository;
+import me.sogom.bridge.domain.notification.entity.NotificationType;
+import me.sogom.bridge.domain.notification.service.NotificationService;
+import me.sogom.bridge.global.security.entity.MemberRole;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +32,8 @@ public class MissionService {
     private final MissionSettingRepository missionSettingRepository;
     private final ParentRepository parentRepository;
     private final ChildrenRepository childrenRepository;
+    // 알림 서비스
+    private final NotificationService notificationService;
 
     @Transactional
     public MissionResDTO.MissionResponse createMission(Long parentId, MissionReqDTO.CreateMissionRequest request) {
@@ -61,6 +66,15 @@ public class MissionService {
                 .lastResetAt(LocalDateTime.now())
                 .build();
         missionSettingRepository.save(setting);
+
+        // 자녀에게 새 미션 생성 알림 전송
+        notificationService.createNotification(
+                child.getId(),
+                MemberRole.CHILDREN,
+                "새 미션이 생성되었습니다.",
+                mission.getTitle(),
+                NotificationType.MISSION_CREATED
+        );
 
         return MissionResDTO.MissionResponse.of(mission, setting);
     }

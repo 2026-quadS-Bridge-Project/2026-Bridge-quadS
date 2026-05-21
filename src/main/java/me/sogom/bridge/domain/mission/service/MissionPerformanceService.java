@@ -11,8 +11,11 @@ import me.sogom.bridge.domain.mission.exception.MissionException;
 import me.sogom.bridge.domain.mission.repository.MissionPerformanceRepository;
 import me.sogom.bridge.domain.mission.repository.MissionRepository;
 import me.sogom.bridge.domain.mission.repository.MissionSettingRepository;
+import me.sogom.bridge.domain.notification.entity.NotificationType;
+import me.sogom.bridge.domain.notification.service.NotificationService;
 import me.sogom.bridge.domain.policy.entity.TimePolicy;
 import me.sogom.bridge.domain.policy.repository.TimePolicyRepository;
+import me.sogom.bridge.global.security.entity.MemberRole;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,6 +33,9 @@ public class MissionPerformanceService {
     private final MissionVerificationAiService aiService;
     private final MissionSettingRepository missionSettingRepository;
     private final TimePolicyRepository timePolicyRepository;
+
+    // 알림 서비스
+    private final NotificationService notificationService;
 
     @Transactional // 데이터를 DB에 반영하기 위해 반드시 필요
     public AiVerificationResponse verifyAndSaveMission(Long missionId, Long childId, MultipartFile image, String prompt, MissionCategory category) throws IOException {
@@ -51,7 +57,6 @@ public class MissionPerformanceService {
                     // 이미 부모나 AI가 승인(ACCEPTED)한 미션이라면 더 이상 진행하지 못하게 차단!
                     if (lastPerformance.getStatus() == MissionStatus.ACCEPTED) {
                         throw new MissionException(MissionErrorCode.MISSION_ALREADY_COMPLETED);
-                        // ➡️ 익셉션 핸들러를 통해 포스트맨에 "이미 완료된 미션입니다" (400) 에러가 예쁘게 나감
                     }
                 });
 
@@ -80,6 +85,15 @@ public class MissionPerformanceService {
             );
 
             performanceRepository.save(performance);
+
+            // 부모에게 미션 확인 요청 알림 전송
+            notificationService.createNotification(
+                    mission.getParent().getId(),
+                    MemberRole.PARENT,
+                    "미션 확인 요청",
+                    child.getName() + "님이 미션 확인을 요청했습니다.",
+                    NotificationType.GENERAL
+            );
 
             return new AiVerificationResponse(
                     false,
@@ -114,13 +128,22 @@ public class MissionPerformanceService {
 
             performanceRepository.save(performance);
 
+            // 부모에게 자녀 미션 완료 알림 전송
+            notificationService.createNotification(
+                    mission.getParent().getId(),
+                    MemberRole.PARENT,
+                    "미션 완료",
+                    child.getName() + "님이 미션을 완료했습니다.",
+                    NotificationType.GENERAL
+            );
+
             return new AiVerificationResponse(
                     true,
                     "미션 완료로 보상 시간이 지급되었습니다."
             );
         }
 
-        // try-catch 블록 내부와 외부 모두에서 사용하기 위해 변수를 미리 선언합니다.
+        // AI 응답 변수 선언
         AiVerificationResponse aiResponse;
 
         try {
@@ -151,6 +174,15 @@ public class MissionPerformanceService {
 
                 // @Transactional 환경이므로 자동 반영되지만 가독성을 위해 호출 유지
                 timePolicyRepository.save(timePolicy);
+
+                // 부모에게 AI 인증 완료 알림 전송
+                notificationService.createNotification(
+                        mission.getParent().getId(),
+                        MemberRole.PARENT,
+                        "AI 미션 인증 완료",
+                        child.getName() + "님의 미션이 AI 인증되었습니다.",
+                        NotificationType.GENERAL
+                );
             }
 
         } catch (Exception e) {
@@ -174,6 +206,7 @@ public class MissionPerformanceService {
         Mission mission = missionRepository.findById(missionId)
                 .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
 
+        // 부모 권한 검증
         if (!mission.getParent().getId().equals(parentId)) {
             throw new MissionException(MissionErrorCode.UNAUTHORIZED_ACCESS);
         }
@@ -231,6 +264,15 @@ public class MissionPerformanceService {
         timePolicyRepository.save(timePolicy);
 
         performanceRepository.save(performance);
+
+        // 자녀에게 승인 알림 전송
+        notificationService.createNotification(
+                performance.getChild().getId(),
+                MemberRole.CHILDREN,
+                "미션 승인 완료",
+                "부모님이 미션을 승인했습니다.",
+                NotificationType.MISSION_APPROVED
+        );
     }
 
     @Transactional
@@ -257,6 +299,14 @@ public class MissionPerformanceService {
         );
 
         performanceRepository.save(performance);
-    }
 
+        // 자녀에게 거절 알림 전송
+        notificationService.createNotification(
+                performance.getChild().getId(),
+                MemberRole.CHILDREN,
+                "미션 거절",
+                "부모님이 미션을 거절했습니다.",
+                NotificationType.MISSION_REJECTED
+        );
+    }
 }

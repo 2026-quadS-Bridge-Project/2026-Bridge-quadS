@@ -1,6 +1,9 @@
 package me.sogom.bridge.domain.notification.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import me.sogom.bridge.domain.fcm.dto.message.FcmMessageDTO;
+import me.sogom.bridge.domain.fcm.service.FcmService;
 import me.sogom.bridge.domain.notification.dto.res.NotificationResDTO;
 import me.sogom.bridge.domain.notification.entity.Notification;
 import me.sogom.bridge.domain.notification.entity.NotificationType;
@@ -11,11 +14,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+
+    // FCM 서비스
+    private final FcmService fcmService;
 
     // 알림 생성
     @Transactional
@@ -36,7 +43,30 @@ public class NotificationService {
                 .notificationType(notificationType)
                 .build();
 
+        // 알림 저장
         notificationRepository.save(notification);
+
+        // FCM 푸시 전송
+        try {
+
+            FcmMessageDTO message = FcmMessageDTO.builder()
+                    .title(title)
+                    .body(content)
+                    .type(notificationType.name())
+                    .targetId(notification.getId())
+                    .build();
+
+            fcmService.sendPush(
+                    memberId,
+                    memberRole,
+                    message
+            );
+
+        } catch (Exception e) {
+
+            // FCM 실패 시 Notification 저장은 유지
+            log.error("FCM 푸시 알림 전송 실패", e);
+        }
     }
 
     // 회원의 알림 목록 조회

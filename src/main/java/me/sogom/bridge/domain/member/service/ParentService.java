@@ -1,8 +1,9 @@
 package me.sogom.bridge.domain.member.service;
 
 import lombok.RequiredArgsConstructor;
-import me.sogom.bridge.domain.member.code.MemberErrorCode;
+import me.sogom.bridge.domain.fcm.service.FcmService;
 import me.sogom.bridge.domain.member.MemberException;
+import me.sogom.bridge.domain.member.code.MemberErrorCode;
 import me.sogom.bridge.domain.member.dto.req.MemberReqDTO;
 import me.sogom.bridge.domain.member.dto.res.MemberResDTO;
 import me.sogom.bridge.domain.member.entity.Children;
@@ -13,6 +14,7 @@ import me.sogom.bridge.domain.member.repository.ParentRepository;
 import me.sogom.bridge.domain.policy.dto.PolicyReqDTO;
 import me.sogom.bridge.domain.policy.entity.TimePolicy;
 import me.sogom.bridge.domain.policy.repository.TimePolicyRepository;
+import me.sogom.bridge.global.security.entity.MemberRole;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +28,9 @@ public class ParentService {
     private final ParentRepository parentRepository;
     private final ChildrenRepository childrenRepository;
     private final TimePolicyRepository timePolicyRepository;
+
+    // FCM 서비스
+    private final FcmService fcmService;
 
     /**
      * 부모 - 자녀 등록
@@ -92,8 +97,11 @@ public class ParentService {
 
         timePolicyRepository.findByChildIdAndYearMonth(request.childId(), request.yearMonth())
                 .ifPresentOrElse(
+
+                        // 이미 존재하는 경우 기본 시간 수정
                         policy -> policy.updateBaseTime(request.baseTime()),
 
+                        // 존재하지 않는 경우 새 정책 생성
                         () -> {
                             TimePolicy newPolicy = TimePolicy.builder()
                                     .parent(parent)
@@ -106,6 +114,11 @@ public class ParentService {
                         }
                 );
 
+        // 자녀 앱 정책 갱신 Silent Push 전송
+        fcmService.sendSilentPush(
+                child.getId(),
+                MemberRole.CHILDREN,
+                "TIME_POLICY_UPDATED"
+        );
     }
 }
-

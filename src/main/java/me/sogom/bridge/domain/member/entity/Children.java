@@ -44,6 +44,10 @@ public class Children extends BaseEntity implements Member {
     @Column(length = 100)
     private String profileImageUrl;
 
+    // FCM 토큰 저장
+    @Column(length = 500)
+    private String fcmToken;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private Parent parent;
@@ -51,6 +55,11 @@ public class Children extends BaseEntity implements Member {
     public void changePassword(String newHash, LocalDateTime changedAt) {
         this.hash = newHash;
         this.passwordChangedAt = changedAt;
+    }
+
+    // FCM 토큰 저장 및 갱신
+    public void updateFcmToken(String fcmToken) {
+        this.fcmToken = fcmToken;
     }
 
     public void markDormant() {

@@ -10,6 +10,7 @@ import java.util.List;
 
 @Entity
 @Getter
+@Setter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -37,6 +38,10 @@ public class Parent extends BaseEntity implements Member {
     @Column
     private LocalDateTime passwordChangedAt;
 
+    // FCM 토큰 저장
+    @Column(length = 500)
+    private String fcmToken;
+
     @OneToMany(mappedBy = "parent", cascade = CascadeType.REMOVE, orphanRemoval = true)
     @Builder.Default
     private List<Children> children = new ArrayList<>();
@@ -44,6 +49,11 @@ public class Parent extends BaseEntity implements Member {
     public void changePassword(String newHash, LocalDateTime changedAt) {
         this.hash = newHash;
         this.passwordChangedAt = changedAt;
+    }
+
+    // FCM 토큰 저장 및 갱신
+    public void updateFcmToken(String fcmToken) {
+        this.fcmToken = fcmToken;
     }
 
     public void withdraw() {

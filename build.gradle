@@ -65,6 +65,9 @@ dependencies {
     implementation 'io.jsonwebtoken:jjwt-impl:0.12.3'
     implementation 'io.jsonwebtoken:jjwt-jackson:0.12.3'
     implementation 'org.springframework.boot:spring-boot-configuration-processor'
+
+    //firebase
+    implementation 'com.google.firebase:firebase-admin:9.3.0'
 }
 
 // 6. 의존성 관리 (BOM): Spring AI와 관련된 수많은 하위 라이브러리들의 버전을 1.1.3으로 일관되게 맞춰주어 버전 충돌을 방지합니다.

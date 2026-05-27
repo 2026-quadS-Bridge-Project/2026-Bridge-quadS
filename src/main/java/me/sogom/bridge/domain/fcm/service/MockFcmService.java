@@ -9,12 +9,8 @@ import me.sogom.bridge.domain.member.repository.ChildrenRepository;
 import me.sogom.bridge.domain.member.repository.ParentRepository;
 import me.sogom.bridge.global.security.entity.AuthMember;
 import me.sogom.bridge.global.security.entity.MemberRole;
-import org.springframework.context.annotation.Primary;
-import org.springframework.stereotype.Service;
 
 @Slf4j
-@Service
-@Primary
 @RequiredArgsConstructor
 public class MockFcmService implements FcmService {
 

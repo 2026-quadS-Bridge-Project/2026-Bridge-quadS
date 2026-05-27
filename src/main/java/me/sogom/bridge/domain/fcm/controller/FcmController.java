@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/fcm")
+@RequestMapping("/api/v1/fcm")
 @Tag(name = "FCM API")
 public class FcmController {
 

@@ -18,6 +18,7 @@
 - ✅ 에러 코드 매핑(§8.1): 앱 `errorCodeOf` 가 백엔드 `MEMBER*/MISSION*` 코드를 앱 표준 코드로 변환. **백엔드 코드 현행 유지.**
 - ✅ 미션 승인/거절(§3.3): 앱이 기존 엔드포인트 라운드트립으로 처리. **백엔드 무변경.**
 - ✅ 자녀 등록(§2.1) 요청 필드: 앱이 `{childrenName,childrenCode,profileImageUrl}` 로 정렬 전송(단, 백엔드의 birth 완화 + 응답 반환 2가지는 §2.1 P1로 필요).
+- ✅ 미션 사진 제출(§3.2): 앱이 `/performances` 로 multipart `image` 직접 전송하도록 전환(`/uploads/photo` 제거). 백엔드는 파라미터 파생만(§3.2 P1).
 
 ---
 
@@ -50,7 +51,7 @@
 | # | 항목 | 우선 | 내용 / 제안 |
 |---|---|---|---|
 | 3.1 | **자녀 미션 조회 권한** | **P1** | `GET /api/v1/missions`가 `authMember.asParent()`로 식별 → **자녀 토큰으로 호출 시 거부**. 자녀가 자기 미션 목록을 못 봄(자녀앱 핵심 화면). 제안: 이 엔드포인트를 CHILDREN 역할도 허용(토큰의 childId로 본인 미션 조회) **또는** 자녀 전용 조회 추가. |
-| 3.2 | **미션 사진 제출 방식 정렬** | **P1(결정)** | 자녀앱: 2단계(`POST /uploads/photo`→URL, `POST /missions/{id}/submit {photoUrls}`). 백엔드: 1단계 multipart `POST /api/v1/missions/{id}/performances`(`image,category,prompt`), `/uploads/photo` 없음. **결정**: (a) 앱을 multipart 직접 업로드로 전환 / (b) 백엔드가 업로드 엔드포인트+`photoUrls` 방식 추가. 또한 `prompt`는 클라이언트 필수 파라미터인데 `MissionPromptProvider`가 서버에 있으므로 **서버 내부 생성으로 빼는 것을 권장**(앱이 프롬프트를 알 이유 없음). |
+| 3.2 | **미션 사진 제출** | **P1** | 📌 **결정 확정(Architecture B)** & **앱 적용 완료**. 앱은 이제 캡처 사진을 `POST /api/v1/missions/{missionId}/performances` 에 **`multipart/form-data` 의 `image` 파일 1개**로 직접 전송한다(기존 `/uploads/photo` 2단계 제거). **백엔드 할 일**: 이 엔드포인트가 `image` 만으로 동작하도록 — `childId`는 **JWT 토큰**에서, `category`는 **미션 엔티티**에서, `prompt`는 **`MissionPromptProvider`로 서버 내부 생성**(현재 required인 `childId`/`category`/`prompt` 파라미터 의존 제거). 응답 `AiVerificationResponse{isAccepted,reason}` 는 그대로 두면 됨(앱은 성공 신호만 사용). ⚠️ 앱은 사진 **1장**(첫 장)만 전송 — 다중 사진은 추후. |
 | 3.3 | 미션 승인/거절 | ✅ **해결됨(앱 처리, 백엔드 무변경)** | 앱이 **기존 백엔드 엔드포인트만으로** 동작하도록 적용 완료: `GET /api/v1/missions?childId` → missionId → `GET /api/v1/missions/{missionId}/performance` → performanceId → `PATCH /api/v1/missions/performances/{performanceId}/approve\|reject` 라운드트립. **백엔드 추가 작업 불필요.** (선택 최적화: 미션 목록 응답에 `performanceId`/`status` 를 포함하면 라운드트립 2회 → 0회로 줄일 수 있음 — P3) |
 | 3.4 | 미션 수정 | P2 | 앱: 미션 편집(PUT). 백엔드 **update 엔드포인트 없음**. 제안: `PUT /api/v1/missions/{missionId}`. |
 | 3.5 | 미션 삭제 | P2 | 앱: 미션 삭제. 백엔드 부재. 제안: `DELETE /api/v1/missions/{missionId}`. |
@@ -133,9 +134,9 @@
 | **1.6** | 자녀 로그인/가입 식별자 확정(email 기준 + 부모코드 연결 위치) | 자녀 로그인·가입 |
 | **2.1** | `childrenBirth` optional 완화 + 등록 응답을 생성 자녀 객체로 반환 | 부모의 자녀 등록 |
 | **3.1** | `GET /api/v1/missions` 를 CHILDREN 역할도 허용(토큰 childId로 본인 미션 조회) | 자녀의 미션 목록 조회 |
-| **3.2** | 미션 사진 제출 방식 확정(권장: `/performances` multipart에서 `prompt` 서버 내부 생성, `category`는 path/서버 조회) **+ 해당 앱 흐름 후속 적용 필요** | 자녀의 미션 사진 제출 |
+| **3.2** | `POST /performances` 가 `image` 파일만으로 동작하도록 — childId(토큰)·category(미션)·prompt(서버 생성) 파생 | 자녀의 미션 사진 제출 |
 
-> **3.2 주의**: 사진 제출은 앱의 2단계(업로드→URL) ↔ 백엔드 multipart 라는 **양쪽 변경이 얽힌** 유일한 항목이라, 백엔드 계약 확정 후 **앱 photo 파이프라인 후속 수정**이 필요(현재 선반영하지 않음 — 계약 미확정 상태에서 추측 변경 시 오류 위험). 나머지 항목은 앱 선반영 완료.
+> **3.2 갱신**: 앱 photo 파이프라인 **선반영 완료**(multipart 직접 전송으로 전환, `/uploads/photo` 제거). 이제 **백엔드의 파라미터 파생만** 남음 — 남은 P1 5개 전부 백엔드 작업만으로 흐름이 열린다.
 
 ### ✅ 앱 선반영으로 백엔드 무변경이 된 항목
 - 3.3 미션 승인/거절 (기존 엔드포인트 라운드트립), 8.1 에러코드 매핑, 알림 파싱(id/type), 미읽음 카운트(로컬), 응답 래퍼 언래핑.

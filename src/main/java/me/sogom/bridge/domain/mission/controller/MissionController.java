@@ -8,11 +8,16 @@ import me.sogom.bridge.domain.mission.dto.req.MissionReqDTO;
 import me.sogom.bridge.domain.mission.dto.res.MissionPerformanceResDTO;
 import me.sogom.bridge.domain.mission.dto.res.MissionResDTO;
 import me.sogom.bridge.domain.mission.entity.MissionCategory;
-import me.sogom.bridge.domain.mission.service.MissionPerformanceService; // 변경: 통합 서비스 임포트
+import me.sogom.bridge.domain.mission.exception.MissionErrorCode;
+import me.sogom.bridge.domain.mission.exception.MissionException;
+import me.sogom.bridge.domain.mission.service.MissionPerformanceService;
 import me.sogom.bridge.domain.mission.service.MissionService;
 import me.sogom.bridge.global.apiPayload.ApiResponse;
+import me.sogom.bridge.global.apiPayload.code.GeneralErrorCode;
 import me.sogom.bridge.global.apiPayload.code.GeneralSuccessCode;
+import me.sogom.bridge.global.apiPayload.exception.ProjectException;
 import me.sogom.bridge.global.security.entity.AuthMember;
+import me.sogom.bridge.global.security.entity.MemberRole;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*; // PathVariable 등을 위해 추가
@@ -41,14 +46,32 @@ public class MissionController {
         return ApiResponse.onSuccess(MissionSuccessCode.MISSION_CREATE_SUCCESS, response);
     }
 
-    //부모의 미션 목록 조회 API
+    //부모/자녀의 미션 목록 조회 API
     @GetMapping
     public ApiResponse<List<MissionResDTO.MissionSummaryResponse>> getMissionList(
             @AuthenticationPrincipal AuthMember authMember,
-            @RequestParam("childId") Long childId) {
+            @RequestParam(value = "childId", required = false) Long childId) {
 
-        Long parentId = authMember.asParent().getId();
-        List<MissionResDTO.MissionSummaryResponse> response = missionService.getParentMissionSummaries(parentId, childId);
+        List<MissionResDTO.MissionSummaryResponse> response;
+
+        if (authMember.getRole() == MemberRole.PARENT) {
+
+            if (childId == null) {
+                throw new MissionException(MissionErrorCode.CHILD_PARENT_MISMATCH);
+            }
+
+            Long parentId = authMember.asParent().getId();
+            response = missionService.getParentMissionSummaries(parentId, childId);
+
+        } else if (authMember.getRole() == MemberRole.CHILDREN) {
+
+            Long childrenId = authMember.asChildren().getId();
+            response = missionService.getChildrenMissionSummaries(childrenId);
+
+        } else {
+            throw new ProjectException(GeneralErrorCode.FORBIDDEN);
+        }
+
         return ApiResponse.onSuccess(MissionSuccessCode.MISSION_LIST_SUCCESS, response);
     }
 

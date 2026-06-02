@@ -104,4 +104,13 @@ public class MissionService {
 
         return MissionResDTO.MissionResponse.of(mission, setting);
     }
+
+    @Transactional(readOnly = true)
+    public List<MissionResDTO.MissionSummaryResponse> getChildrenMissionSummaries(Long childrenId) {
+
+        Children child = childrenRepository.findById(childrenId)
+                .orElseThrow(() -> new MemberException(MemberErrorCode.CHILDREN_NOT_FOUND));
+
+        return missionSettingRepository.findMissionSummariesByChildId(child.getId());
+    }
 }

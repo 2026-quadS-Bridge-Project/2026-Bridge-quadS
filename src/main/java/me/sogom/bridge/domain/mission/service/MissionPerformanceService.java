@@ -38,7 +38,7 @@ public class MissionPerformanceService {
     private final NotificationService notificationService;
 
     @Transactional // 데이터를 DB에 반영하기 위해 반드시 필요
-    public AiVerificationResponse verifyAndSaveMission(Long missionId, Long childId, MultipartFile image, String prompt, MissionCategory category) throws IOException {
+    public AiVerificationResponse verifyAndSaveMission( Long missionId, Long childId, MultipartFile image ) throws IOException {
         //미션과 자녀 정보 조회 (예외 던지기 적용)
         Mission mission = missionRepository.findById(missionId)
                 .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
@@ -72,6 +72,8 @@ public class MissionPerformanceService {
         // 미션 설정 정보 조회
         MissionSetting setting = missionSettingRepository.findByMissionId(missionId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 미션의 설정 정보를 찾을 수 없습니다."));
+        MissionCategory category = setting.getCategory();   //카테고리를 미션id로 받아옴
+        String prompt = setting.getDescription();   //부모가 미션 세팅 시 미션 설명 적은걸 가져옴
 
         // 미션 인증 방식 조회
         VerificationType verificationType = setting.getVerificationType();

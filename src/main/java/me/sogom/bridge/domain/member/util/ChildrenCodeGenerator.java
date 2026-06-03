@@ -1,12 +1,12 @@
 package me.sogom.bridge.domain.member.util;
 
-import java.util.Random;
+import java.security.SecureRandom;
 
 public class ChildrenCodeGenerator {
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int CODE_LENGTH = 8;
-    private static final Random RANDOM = new Random();
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     /**
      * 자녀 연동 코드 생성 (영문 대문자 + 숫자 조합, 8자리)

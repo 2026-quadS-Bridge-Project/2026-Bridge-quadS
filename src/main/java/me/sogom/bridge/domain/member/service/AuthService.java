@@ -14,6 +14,8 @@ import me.sogom.bridge.domain.member.repository.ChildrenRepository;
 import me.sogom.bridge.domain.member.repository.ParentRepository;
 import me.sogom.bridge.domain.member.repository.RefreshTokenRepository;
 import me.sogom.bridge.domain.member.util.ChildrenCodeGenerator;
+import me.sogom.bridge.global.apiPayload.code.GeneralErrorCode;
+import me.sogom.bridge.global.apiPayload.exception.ProjectException;
 import me.sogom.bridge.global.security.entity.AuthMember;
 import me.sogom.bridge.global.security.entity.MemberRole;
 import me.sogom.bridge.global.security.util.JwtUtil;
@@ -49,7 +51,7 @@ public class AuthService {
     public MemberResDTO.AuthResponse signUpChildren(MemberReqDTO.SignUpRequest request) {
         checkDuplicateEmail(request.email());
 
-        String code = ChildrenCodeGenerator.generateCode();
+        String code = generateUniqueChildrenCode();
         Children children = Children.builder()
                 .name(request.name())
                 .email(request.email())
@@ -58,6 +60,18 @@ public class AuthService {
                 .build();
         childrenRepository.save(children);
         return new MemberResDTO.AuthResponse(null, null, null, null);
+    }
+
+    private static final int CHILDREN_CODE_MAX_ATTEMPTS = 5;
+
+    private String generateUniqueChildrenCode() {
+        for (int i = 0; i < CHILDREN_CODE_MAX_ATTEMPTS; i++) {
+            String candidate = ChildrenCodeGenerator.generateCode();
+            if (childrenRepository.findByCode(candidate).isEmpty()) {
+                return candidate;
+            }
+        }
+        throw new ProjectException(GeneralErrorCode.INTERNAL_SERVER_ERROR);
     }
 
     @Transactional

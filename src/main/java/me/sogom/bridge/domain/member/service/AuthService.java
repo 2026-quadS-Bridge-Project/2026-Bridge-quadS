@@ -6,6 +6,7 @@ import me.sogom.bridge.domain.member.MemberException;
 import me.sogom.bridge.domain.member.dto.req.MemberReqDTO;
 import me.sogom.bridge.domain.member.dto.res.MemberResDTO;
 import me.sogom.bridge.domain.member.entity.Children;
+import me.sogom.bridge.domain.member.entity.Member;
 import me.sogom.bridge.domain.member.entity.MemberStatus;
 import me.sogom.bridge.domain.member.entity.Parent;
 import me.sogom.bridge.domain.member.entity.RefreshToken;
@@ -41,7 +42,7 @@ public class AuthService {
                 .hash(passwordEncoder.encode(request.password()))
                 .build();
         parentRepository.save(parent);
-        return new MemberResDTO.AuthResponse(null, null);
+        return new MemberResDTO.AuthResponse(null, null, null, null);
     }
 
     @Transactional
@@ -56,7 +57,7 @@ public class AuthService {
                 .code(code)
                 .build();
         childrenRepository.save(children);
-        return new MemberResDTO.AuthResponse(null, null);
+        return new MemberResDTO.AuthResponse(null, null, null, null);
     }
 
     @Transactional
@@ -116,12 +117,14 @@ public class AuthService {
                 .expiresAt(expiresAt)
                 .build());
 
-        return new MemberResDTO.AuthResponse(accessToken, refreshTokenValue);
+        Member member = authMember.getMember();
+        return new MemberResDTO.AuthResponse(accessToken, refreshTokenValue, member.getId(), member.getName());
     }
 
     private MemberResDTO.AuthResponse issueAccessTokenOnly(AuthMember authMember) {
         String accessToken = jwtUtil.createAccessToken(authMember);
-        return new MemberResDTO.AuthResponse(accessToken, null);
+        Member member = authMember.getMember();
+        return new MemberResDTO.AuthResponse(accessToken, null, member.getId(), member.getName());
     }
 
     private AuthMember loadAuthMember(String email, MemberRole role) {

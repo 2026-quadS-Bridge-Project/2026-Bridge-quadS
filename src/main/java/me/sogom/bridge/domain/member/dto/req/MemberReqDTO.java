@@ -1,5 +1,6 @@
 package me.sogom.bridge.domain.member.dto.req;
 
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -55,7 +56,7 @@ public class MemberReqDTO {
             @NotBlank(message = "자녀 이름을 입력해 주세요.")
             String childrenName,
 
-            @NotBlank(message = "자녀 출생연도를 입력해 주세요.")
+            @Nullable
             String childrenBirth,
 
             @NotBlank(message = "자녀 코드를 입력해 주세요.")

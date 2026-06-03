@@ -13,7 +13,7 @@ public interface MissionSettingRepository extends JpaRepository<MissionSetting, 
     Optional<MissionSetting> findByMissionId(Long missionId);
 
     @Query("""
-            select new me.sogom.bridge.domain.mission.dto.res.MissionResDTO$MissionSummaryResponse(
+            select new me.sogom.bridge.domain.mission.dto.res.MissionResDTO.MissionSummaryResponse(
                 m.id,
                 m.title,
                 s.category,
@@ -26,4 +26,18 @@ public interface MissionSettingRepository extends JpaRepository<MissionSetting, 
             order by m.id desc
             """)
     List<MissionResDTO.MissionSummaryResponse> findMissionSummariesByParentIdAndChildId(Long parentId, Long childId);
+
+    @Query("""
+        select new me.sogom.bridge.domain.mission.dto.res.MissionResDTO.MissionSummaryResponse(
+            m.id,
+            m.title,
+            s.category,
+            s.reward
+        )
+        from MissionSetting s
+        join s.mission m
+        where m.child.id = :childId
+        order by m.id desc
+        """)
+    List<MissionResDTO.MissionSummaryResponse> findMissionSummariesByChildId(Long childId);
 }

@@ -7,7 +7,6 @@ import me.sogom.bridge.domain.mission.dto.AiVerificationResponse;
 import me.sogom.bridge.domain.mission.dto.req.MissionReqDTO;
 import me.sogom.bridge.domain.mission.dto.res.MissionPerformanceResDTO;
 import me.sogom.bridge.domain.mission.dto.res.MissionResDTO;
-import me.sogom.bridge.domain.mission.entity.MissionCategory;
 import me.sogom.bridge.domain.mission.exception.MissionErrorCode;
 import me.sogom.bridge.domain.mission.exception.MissionException;
 import me.sogom.bridge.domain.mission.service.MissionPerformanceService;
@@ -20,7 +19,7 @@ import me.sogom.bridge.global.security.entity.AuthMember;
 import me.sogom.bridge.global.security.entity.MemberRole;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*; // PathVariable 등을 위해 추가
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -88,13 +87,11 @@ public class MissionController {
     @PostMapping(value = "/{missionId}/performances", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<AiVerificationResponse> performMission(
             @PathVariable("missionId") Long missionId,      // 어떤 미션인지 (경로 변수)
-            @RequestParam("childId") Long childId,          // 수행하는 자녀가 누구인지
-            @RequestParam("image") MultipartFile image,     // 인증 사진
-            @RequestParam("category") MissionCategory category, //카테고리
-            @RequestParam("prompt") String prompt) throws IOException {
-
+            @AuthenticationPrincipal AuthMember authMember, // member JWT token
+            @RequestParam("image") MultipartFile image ) throws IOException {   // 인증 사진
+        Long childId = authMember.asChildren().getId();     // 수행하는 자녀가 누구인지 token에서 가져옴
         // Service에서 권한 검증 -> AI 판독 -> DB 저장(reason 포함)을 한 번에 처리 후 결과 반환
-        AiVerificationResponse result = performanceService.verifyAndSaveMission(missionId, childId, image, prompt, category);
+        AiVerificationResponse result = performanceService.verifyAndSaveMission( missionId, childId, image );
         // APIResponse 포맷으로 반환
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, result);
     }

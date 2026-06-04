@@ -15,6 +15,7 @@ import me.sogom.bridge.domain.policy.dto.PolicyReqDTO;
 import me.sogom.bridge.domain.policy.entity.TimePolicy;
 import me.sogom.bridge.domain.policy.repository.TimePolicyRepository;
 import me.sogom.bridge.global.security.entity.MemberRole;
+import me.sogom.bridge.global.storage.PhotoUrlResolver;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,9 @@ public class ParentService {
 
     // FCM 서비스
     private final FcmService fcmService;
+
+    // 프로필 이미지 key → presigned URL 변환
+    private final PhotoUrlResolver photoUrlResolver;
 
     /**
      * 부모 - 자녀 등록
@@ -53,7 +57,7 @@ public class ParentService {
         // 자녀 정보 업데이트
         children.setParent(parent);
         children.setBirth(request.childrenBirth());
-        children.setProfileImageUrl(request.profileImageUrl());
+        children.setProfileImageKey(request.profileImageKey());
 
         childrenRepository.save(children);
         parent.getChildren().add(children);
@@ -71,7 +75,10 @@ public class ParentService {
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
 
         return parent.getChildren().stream()
-                .map(MemberResDTO.ChildrenInfoResponse::of)
+                .map(child -> MemberResDTO.ChildrenInfoResponse.of(
+                        child,
+                        photoUrlResolver.resolveOrNull(child.getProfileImageKey())
+                ))
                 .collect(Collectors.toList());
     }
 

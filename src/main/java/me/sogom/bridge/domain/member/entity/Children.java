@@ -41,8 +41,8 @@ public class Children extends BaseEntity implements Member {
     @Column(length = 4)
     private String birth; // 자녀 출생연도
 
-    @Column(length = 100)
-    private String profileImageUrl;
+    @Column(name = "profile_image_key", length = 100)
+    private String profileImageKey;
 
     // FCM 토큰 저장
     @Column(length = 500)

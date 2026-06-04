@@ -4,4 +4,5 @@ public interface Member {
     Long getId();
     String getEmail();
     String getHash();
+    String getName();
 }

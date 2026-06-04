@@ -11,7 +11,9 @@ public class MemberResDTO {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record AuthResponse(
         @Nullable String accessToken,
-        @Nullable String refreshToken
+        @Nullable String refreshToken,
+        @Nullable Long memberId,
+        @Nullable String name
     ) {}
 
     @Builder

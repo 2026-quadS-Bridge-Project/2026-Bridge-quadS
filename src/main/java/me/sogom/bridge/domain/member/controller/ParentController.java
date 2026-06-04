@@ -28,12 +28,12 @@ public class ParentController {
      * @return 자녀 등록 성공 응답
      */
     @PostMapping("/children")
-    public ApiResponse<Void> registerChild(
+    public ApiResponse<MemberResDTO.ChildrenInfoResponse> registerChild(
             @AuthenticationPrincipal AuthMember authMember,
             @RequestBody @Valid MemberReqDTO.RegisterChildRequest request) {
         Long parentId = authMember.getMember().getId();
-        parentService.registerChild(parentId, request);
-        return ApiResponse.onSuccess(MemberSuccessCode.CHILDREN_REGISTER_SUCCESS, null);
+        MemberResDTO.ChildrenInfoResponse response = parentService.registerChild(parentId, request);
+        return ApiResponse.onSuccess(MemberSuccessCode.CHILDREN_REGISTER_SUCCESS, response);
     }
 
     /**

@@ -35,7 +35,7 @@ public class Children extends BaseEntity implements Member {
     @Column
     private LocalDateTime passwordChangedAt;
 
-    @Column(length = 8)
+    @Column(length = 8, unique = true)
     private String code; // 자녀 연동 코드
 
     @Column(length = 4)

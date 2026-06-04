@@ -6,6 +6,7 @@ import me.sogom.bridge.domain.member.MemberException;
 import me.sogom.bridge.domain.member.dto.req.MemberReqDTO;
 import me.sogom.bridge.domain.member.dto.res.MemberResDTO;
 import me.sogom.bridge.domain.member.entity.Children;
+import me.sogom.bridge.domain.member.entity.Member;
 import me.sogom.bridge.domain.member.entity.MemberStatus;
 import me.sogom.bridge.domain.member.entity.Parent;
 import me.sogom.bridge.domain.member.entity.RefreshToken;
@@ -13,6 +14,8 @@ import me.sogom.bridge.domain.member.repository.ChildrenRepository;
 import me.sogom.bridge.domain.member.repository.ParentRepository;
 import me.sogom.bridge.domain.member.repository.RefreshTokenRepository;
 import me.sogom.bridge.domain.member.util.ChildrenCodeGenerator;
+import me.sogom.bridge.global.apiPayload.code.GeneralErrorCode;
+import me.sogom.bridge.global.apiPayload.exception.ProjectException;
 import me.sogom.bridge.global.security.entity.AuthMember;
 import me.sogom.bridge.global.security.entity.MemberRole;
 import me.sogom.bridge.global.security.util.JwtUtil;
@@ -41,14 +44,14 @@ public class AuthService {
                 .hash(passwordEncoder.encode(request.password()))
                 .build();
         parentRepository.save(parent);
-        return new MemberResDTO.AuthResponse(null, null);
+        return new MemberResDTO.AuthResponse(null, null, null, null);
     }
 
     @Transactional
     public MemberResDTO.AuthResponse signUpChildren(MemberReqDTO.SignUpRequest request) {
         checkDuplicateEmail(request.email());
 
-        String code = ChildrenCodeGenerator.generateCode();
+        String code = generateUniqueChildrenCode();
         Children children = Children.builder()
                 .name(request.name())
                 .email(request.email())
@@ -56,7 +59,19 @@ public class AuthService {
                 .code(code)
                 .build();
         childrenRepository.save(children);
-        return new MemberResDTO.AuthResponse(null, null);
+        return new MemberResDTO.AuthResponse(null, null, null, null);
+    }
+
+    private static final int CHILDREN_CODE_MAX_ATTEMPTS = 5;
+
+    private String generateUniqueChildrenCode() {
+        for (int i = 0; i < CHILDREN_CODE_MAX_ATTEMPTS; i++) {
+            String candidate = ChildrenCodeGenerator.generateCode();
+            if (childrenRepository.findByCode(candidate).isEmpty()) {
+                return candidate;
+            }
+        }
+        throw new ProjectException(GeneralErrorCode.INTERNAL_SERVER_ERROR);
     }
 
     @Transactional
@@ -116,12 +131,14 @@ public class AuthService {
                 .expiresAt(expiresAt)
                 .build());
 
-        return new MemberResDTO.AuthResponse(accessToken, refreshTokenValue);
+        Member member = authMember.getMember();
+        return new MemberResDTO.AuthResponse(accessToken, refreshTokenValue, member.getId(), member.getName());
     }
 
     private MemberResDTO.AuthResponse issueAccessTokenOnly(AuthMember authMember) {
         String accessToken = jwtUtil.createAccessToken(authMember);
-        return new MemberResDTO.AuthResponse(accessToken, null);
+        Member member = authMember.getMember();
+        return new MemberResDTO.AuthResponse(accessToken, null, member.getId(), member.getName());
     }
 
     private AuthMember loadAuthMember(String email, MemberRole role) {

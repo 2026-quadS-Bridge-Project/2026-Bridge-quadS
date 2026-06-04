@@ -42,7 +42,7 @@ public class ParentService {
      * @param request 자녀 등록 요청 (자녀 이름, 자녀 코드, 프로필 사진 URL)
      */
     @Transactional
-    public void registerChild(Long parentId, MemberReqDTO.RegisterChildRequest request) {
+    public MemberResDTO.ChildrenInfoResponse registerChild(Long parentId, MemberReqDTO.RegisterChildRequest request) {
         Parent parent = parentRepository.findById(parentId)
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
 
@@ -62,6 +62,8 @@ public class ParentService {
         childrenRepository.save(children);
         parent.getChildren().add(children);
         parentRepository.save(parent);
+
+        return MemberResDTO.ChildrenInfoResponse.of(children);
     }
 
     /**

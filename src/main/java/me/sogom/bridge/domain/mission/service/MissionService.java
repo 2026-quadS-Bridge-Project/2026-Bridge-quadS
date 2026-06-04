@@ -9,6 +9,7 @@ import me.sogom.bridge.domain.member.repository.ChildrenRepository;
 import me.sogom.bridge.domain.member.repository.ParentRepository;
 import me.sogom.bridge.domain.mission.dto.req.MissionReqDTO;
 import me.sogom.bridge.domain.mission.dto.res.MissionResDTO;
+import me.sogom.bridge.domain.mission.dto.res.MissionSummaryResponse;
 import me.sogom.bridge.domain.mission.entity.Mission;
 import me.sogom.bridge.domain.mission.entity.MissionSetting;
 import me.sogom.bridge.domain.mission.exception.MissionErrorCode;
@@ -80,7 +81,7 @@ public class MissionService {
     }
 
     @Transactional(readOnly = true)
-    public List<MissionResDTO.MissionSummaryResponse> getParentMissionSummaries(Long parentId, Long childId) {
+    public List<MissionSummaryResponse> getParentMissionSummaries(Long parentId, Long childId) {
         parentRepository.findById(parentId)
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
 
@@ -106,7 +107,7 @@ public class MissionService {
     }
 
     @Transactional(readOnly = true)
-    public List<MissionResDTO.MissionSummaryResponse> getChildrenMissionSummaries(Long childrenId) {
+    public List<MissionSummaryResponse> getChildrenMissionSummaries(Long childrenId) {
 
         Children child = childrenRepository.findById(childrenId)
                 .orElseThrow(() -> new MemberException(MemberErrorCode.CHILDREN_NOT_FOUND));

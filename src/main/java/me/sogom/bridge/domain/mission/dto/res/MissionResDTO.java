@@ -33,12 +33,4 @@ public class MissionResDTO {
                     .build();
         }
     }
-
-
-    public record MissionSummaryResponse(
-            Long missionId,
-            String title,
-            MissionCategory category,
-            int reward
-    ) {}
 }

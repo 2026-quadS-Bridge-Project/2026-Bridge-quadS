@@ -26,13 +26,48 @@ repositories {
 dependencies {
     // REST API 등 웹 서버 기능을 구축하기 위한 스프링 부트 필수 모듈
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
 
     // Google Gemini API 연동을 위한 Spring AI 라이브러리 (상세 버전은 아래 BOM에서 주입됨)
     implementation 'org.springframework.ai:spring-ai-starter-model-google-genai'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
     // 코드 테스트(JUnit 등)를 위한 환경 도구
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // Spring Data JPA (데이터베이스 연결 및 엔티티 관리용)
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // Lombok (Getter, 생성자 등 코드를 줄여주는 용도)
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    //dotenv-spring-boot-starter(.env 파일을 자동으로 읽어오는 용도)
+    implementation 'me.paulschwarz:spring-dotenv:4.0.0' //기존 것은 Java용으로 오류가 나서 변경함
+
+    // Swagger (API 문서 자동 생성 및 UI 제공)
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-api:2.7.0'
+
+    // H2 메모리 데이터베이스 (테스트용)
+    runtimeOnly 'com.h2database:h2'
+
+    // PostgreSQL 드라이버
+    runtimeOnly 'org.postgresql:postgresql'
+
+    // Security
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    testImplementation 'org.springframework.security:spring-security-test'
+
+    // Jwt
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
+    implementation 'io.jsonwebtoken:jjwt-impl:0.12.3'
+    implementation 'io.jsonwebtoken:jjwt-jackson:0.12.3'
+    implementation 'org.springframework.boot:spring-boot-configuration-processor'
+
+    //firebase
+    implementation 'com.google.firebase:firebase-admin:9.3.0'
 }
 
 // 6. 의존성 관리 (BOM): Spring AI와 관련된 수많은 하위 라이브러리들의 버전을 1.1.3으로 일관되게 맞춰주어 버전 충돌을 방지합니다.

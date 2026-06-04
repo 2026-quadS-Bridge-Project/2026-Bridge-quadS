@@ -35,3 +35,7 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### env file ###
+.env
+/src/main/resources/firebase/service-account.json

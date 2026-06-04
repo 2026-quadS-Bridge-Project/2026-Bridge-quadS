@@ -1,0 +1,116 @@
+package me.sogom.bridge.domain.mission.service;
+
+import lombok.RequiredArgsConstructor;
+import me.sogom.bridge.domain.member.MemberException;
+import me.sogom.bridge.domain.member.code.MemberErrorCode;
+import me.sogom.bridge.domain.member.entity.Children;
+import me.sogom.bridge.domain.member.entity.Parent;
+import me.sogom.bridge.domain.member.repository.ChildrenRepository;
+import me.sogom.bridge.domain.member.repository.ParentRepository;
+import me.sogom.bridge.domain.mission.dto.req.MissionReqDTO;
+import me.sogom.bridge.domain.mission.dto.res.MissionResDTO;
+import me.sogom.bridge.domain.mission.entity.Mission;
+import me.sogom.bridge.domain.mission.entity.MissionSetting;
+import me.sogom.bridge.domain.mission.exception.MissionErrorCode;
+import me.sogom.bridge.domain.mission.exception.MissionException;
+import me.sogom.bridge.domain.mission.repository.MissionRepository;
+import me.sogom.bridge.domain.mission.repository.MissionSettingRepository;
+import me.sogom.bridge.domain.notification.entity.NotificationType;
+import me.sogom.bridge.domain.notification.service.NotificationService;
+import me.sogom.bridge.global.security.entity.MemberRole;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class MissionService {
+
+    private final MissionRepository missionRepository;
+    private final MissionSettingRepository missionSettingRepository;
+    private final ParentRepository parentRepository;
+    private final ChildrenRepository childrenRepository;
+    // 알림 서비스
+    private final NotificationService notificationService;
+
+    @Transactional
+    public MissionResDTO.MissionResponse createMission(Long parentId, MissionReqDTO.CreateMissionRequest request) {
+
+        Parent parent = parentRepository.findById(parentId)
+                .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+
+        Children child = childrenRepository.findById(request.childId())
+                .orElseThrow(() -> new MemberException(MemberErrorCode.CHILDREN_NOT_FOUND));
+
+        // 부모-자녀 연관관계 검증
+        if (child.getParent() == null || !child.getParent().getId().equals(parentId)) {
+            throw new MissionException(MissionErrorCode.CHILD_PARENT_MISMATCH);
+        }
+
+        Mission mission = Mission.builder()
+                .parent(parent)
+                .child(child)
+                .title(request.title())
+                .build();
+        missionRepository.save(mission);
+
+        MissionSetting setting = MissionSetting.builder()
+                .mission(mission)
+                .category(request.category())
+                .resetCycle(request.resetCycle())
+                .verificationType(request.verificationType())
+                .reward(request.reward())
+                .description(request.description())
+                .lastResetAt(LocalDateTime.now())
+                .build();
+        missionSettingRepository.save(setting);
+
+        // 자녀에게 새 미션 생성 알림 전송
+        notificationService.createNotification(
+                child.getId(),
+                MemberRole.CHILDREN,
+                "새 미션이 생성되었습니다.",
+                mission.getTitle(),
+                NotificationType.MISSION_CREATED
+        );
+
+        return MissionResDTO.MissionResponse.of(mission, setting);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MissionResDTO.MissionSummaryResponse> getParentMissionSummaries(Long parentId, Long childId) {
+        parentRepository.findById(parentId)
+                .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+
+        Children child = childrenRepository.findById(childId)
+                .orElseThrow(() -> new MemberException(MemberErrorCode.CHILDREN_NOT_FOUND));
+
+        if (child.getParent() == null || !child.getParent().getId().equals(parentId)) {
+            throw new MissionException(MissionErrorCode.CHILD_PARENT_MISMATCH);
+        }
+
+        return missionSettingRepository.findMissionSummariesByParentIdAndChildId(parentId, childId);
+    }
+
+    @Transactional(readOnly = true)
+    public MissionResDTO.MissionResponse getMissionDetail(Long missionId) {
+        Mission mission = missionRepository.findById(missionId)
+                .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
+
+        MissionSetting setting = missionSettingRepository.findByMissionId(missionId)
+                .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
+
+        return MissionResDTO.MissionResponse.of(mission, setting);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MissionResDTO.MissionSummaryResponse> getChildrenMissionSummaries(Long childrenId) {
+
+        Children child = childrenRepository.findById(childrenId)
+                .orElseThrow(() -> new MemberException(MemberErrorCode.CHILDREN_NOT_FOUND));
+
+        return missionSettingRepository.findMissionSummariesByChildId(child.getId());
+    }
+}

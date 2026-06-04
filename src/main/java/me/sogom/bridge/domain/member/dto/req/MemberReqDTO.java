@@ -62,7 +62,7 @@ public class MemberReqDTO {
             @NotBlank(message = "자녀 코드를 입력해 주세요.")
             String childrenCode,
 
-            String profileImageUrl // optional
+            String profileImageKey // S3 key returned by POST /api/v1/files/photos (optional)
     ) {}
 
 }

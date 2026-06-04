@@ -17,16 +17,17 @@ public class MemberResDTO {
     ) {}
 
     @Builder
-    public record ChildrenInfoResponse(
+    public record
+    ChildrenInfoResponse(
             @JsonProperty("childrenId") Long childrenId,
             @JsonProperty("name") String name,
             @JsonProperty("profileImageUrl") String profileImageUrl
     ) {
-        public static ChildrenInfoResponse of(Children children) {
+        public static ChildrenInfoResponse of(Children children, String profileImageUrl) {
             return ChildrenInfoResponse.builder()
                     .childrenId(children.getId())
                     .name(children.getName())
-                    .profileImageUrl(children.getProfileImageUrl())
+                    .profileImageUrl(profileImageUrl)
                     .build();
         }
     }

@@ -1,6 +1,7 @@
 package me.sogom.bridge.domain.mission.service;
 
 import lombok.RequiredArgsConstructor;
+import me.sogom.bridge.domain.file.dto.PhotoCategory;
 import me.sogom.bridge.domain.member.entity.Children;
 import me.sogom.bridge.domain.member.repository.ChildrenRepository;
 import me.sogom.bridge.domain.mission.dto.AiVerificationResponse;
@@ -16,6 +17,8 @@ import me.sogom.bridge.domain.notification.service.NotificationService;
 import me.sogom.bridge.domain.policy.entity.TimePolicy;
 import me.sogom.bridge.domain.policy.repository.TimePolicyRepository;
 import me.sogom.bridge.global.security.entity.MemberRole;
+import me.sogom.bridge.global.storage.PhotoUrlResolver;
+import me.sogom.bridge.global.storage.StorageService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -36,6 +39,9 @@ public class MissionPerformanceService {
 
     // 알림 서비스
     private final NotificationService notificationService;
+
+    private final StorageService storageService;
+    private final PhotoUrlResolver photoUrlResolver;
 
     @Transactional // 데이터를 DB에 반영하기 위해 반드시 필요
     public AiVerificationResponse verifyAndSaveMission( Long missionId, Long childId, MultipartFile image ) throws IOException {
@@ -68,6 +74,13 @@ public class MissionPerformanceService {
                 .reason("AI가 사진을 분석하고 있습니다.")
                 .build();
         performanceRepository.save(performance);
+
+        // 인증 사진을 S3에 업로드하고 key를 performance에 저장 (모든 인증 방식 공통)
+        String proofImageKey = storageService.upload(
+                image,
+                PhotoCategory.MISSION.keyPrefix(MemberRole.CHILDREN.name(), childId)
+        );
+        performance.updateProofImageKey(proofImageKey);
 
         // 미션 설정 정보 조회
         MissionSetting setting = missionSettingRepository.findByMissionId(missionId)
@@ -216,7 +229,7 @@ public class MissionPerformanceService {
         MissionPerformance performance = performanceRepository.findTopByMissionIdOrderByIdDesc(missionId)
                 .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
 
-        return MissionPerformanceResDTO.MissionPerformanceResponse.of(performance);
+        return MissionPerformanceResDTO.MissionPerformanceResponse.of(performance, photoUrlResolver);
     }
 
     @Transactional

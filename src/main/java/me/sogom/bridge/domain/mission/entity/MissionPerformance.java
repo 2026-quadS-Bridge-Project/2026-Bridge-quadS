@@ -28,8 +28,8 @@ public class MissionPerformance extends BaseEntity {
     @Column(nullable = false) // 옵션: null 허용 안함, PostgreSQL 문법
     private MissionStatus status; // PENDING, ACCEPTED, REJECTED
 
-    @Column(name = "proof_url", length = 500)
-    private String proofUrl;
+    @Column(name = "proof_image_key", length = 500)
+    private String proofImageKey;
 
     @Column(name = "reason", columnDefinition = "TEXT") //AI의 분석 근거를 저장할 컬럼 추가
     private String reason;
@@ -38,5 +38,10 @@ public class MissionPerformance extends BaseEntity {
     public void updateStatusAndReason(MissionStatus status, String reason) {
         this.status = status;
         this.reason = reason;
+    }
+
+    // 인증 사진 S3 key 저장
+    public void updateProofImageKey(String proofImageKey) {
+        this.proofImageKey = proofImageKey;
     }
 }

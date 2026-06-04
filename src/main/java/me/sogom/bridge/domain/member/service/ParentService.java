@@ -63,7 +63,10 @@ public class ParentService {
         parent.getChildren().add(children);
         parentRepository.save(parent);
 
-        return MemberResDTO.ChildrenInfoResponse.of(children);
+        return MemberResDTO.ChildrenInfoResponse.of(
+                children,
+                photoUrlResolver.resolveOrNull(children.getProfileImageKey())
+        );
     }
 
     /**

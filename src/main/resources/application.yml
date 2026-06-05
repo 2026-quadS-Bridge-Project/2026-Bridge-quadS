@@ -1,11 +1,10 @@
 spring:
   profiles:
-    active: local # 기본적으로 local 프로필을 활성화
+    active: local
 
   application:
     name: Bridge
 
-  # 기존 Gemini 설정 유지
   ai:
     google:
       genai:
@@ -14,7 +13,6 @@ spring:
           options:
             model: gemini-2.5-flash
 
-  # 기존 파일 업로드 설정 유지
   servlet:
     multipart:
       max-file-size: 10MB
@@ -27,3 +25,12 @@ jwt:
       access: 3600000       # 1시간
       refresh: 1209600000   # 14일
 
+cloud:
+  aws:
+    s3:
+      bucket: ${AWS_S3_BUCKET}
+      region: ${AWS_S3_REGION:ap-northeast-2}
+      access-key: ${AWS_ACCESS_KEY:}     # 비우면 IAM Role(DefaultCredentialsProvider) 사용
+      secret-key: ${AWS_SECRET_KEY:}
+      presigned-get-expiration-seconds: 3600  # 1시간
+      max-file-size-bytes: 10485760           # 10MB

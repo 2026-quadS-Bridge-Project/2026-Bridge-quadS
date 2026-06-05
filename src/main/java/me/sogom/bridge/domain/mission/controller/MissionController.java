@@ -7,6 +7,7 @@ import me.sogom.bridge.domain.mission.dto.AiVerificationResponse;
 import me.sogom.bridge.domain.mission.dto.req.MissionReqDTO;
 import me.sogom.bridge.domain.mission.dto.res.MissionPerformanceResDTO;
 import me.sogom.bridge.domain.mission.dto.res.MissionResDTO;
+import me.sogom.bridge.domain.mission.dto.res.MissionSummaryResponse;
 import me.sogom.bridge.domain.mission.exception.MissionErrorCode;
 import me.sogom.bridge.domain.mission.exception.MissionException;
 import me.sogom.bridge.domain.mission.service.MissionPerformanceService;
@@ -47,11 +48,11 @@ public class MissionController {
 
     //부모/자녀의 미션 목록 조회 API
     @GetMapping
-    public ApiResponse<List<MissionResDTO.MissionSummaryResponse>> getMissionList(
+    public ApiResponse<List<MissionSummaryResponse>> getMissionList(
             @AuthenticationPrincipal AuthMember authMember,
             @RequestParam(value = "childId", required = false) Long childId) {
 
-        List<MissionResDTO.MissionSummaryResponse> response;
+        List<MissionSummaryResponse> response;
 
         if (authMember.getRole() == MemberRole.PARENT) {
 

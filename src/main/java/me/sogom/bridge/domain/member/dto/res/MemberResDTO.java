@@ -13,19 +13,22 @@ public class MemberResDTO {
         @Nullable String accessToken,
         @Nullable String refreshToken,
         @Nullable Long memberId,
-        @Nullable String name
+        @Nullable String name,
+        @Nullable String childCode
     ) {}
 
     @Builder
     public record
     ChildrenInfoResponse(
             @JsonProperty("childrenId") Long childrenId,
+            @JsonProperty("childCode") String childCode,
             @JsonProperty("name") String name,
             @JsonProperty("profileImageUrl") String profileImageUrl
     ) {
         public static ChildrenInfoResponse of(Children children, String profileImageUrl) {
             return ChildrenInfoResponse.builder()
                     .childrenId(children.getId())
+                    .childCode(children.getCode())
                     .name(children.getName())
                     .profileImageUrl(profileImageUrl)
                     .build();

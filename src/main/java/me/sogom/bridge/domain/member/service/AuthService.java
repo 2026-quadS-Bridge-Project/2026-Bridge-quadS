@@ -44,7 +44,7 @@ public class AuthService {
                 .hash(passwordEncoder.encode(request.password()))
                 .build();
         parentRepository.save(parent);
-        return new MemberResDTO.AuthResponse(null, null, null, null);
+        return new MemberResDTO.AuthResponse(null, null, null, null, null);
     }
 
     @Transactional
@@ -59,7 +59,7 @@ public class AuthService {
                 .code(code)
                 .build();
         childrenRepository.save(children);
-        return new MemberResDTO.AuthResponse(null, null, null, null);
+        return new MemberResDTO.AuthResponse(null, null, null, null, null);
     }
 
     private static final int CHILDREN_CODE_MAX_ATTEMPTS = 5;
@@ -132,13 +132,15 @@ public class AuthService {
                 .build());
 
         Member member = authMember.getMember();
-        return new MemberResDTO.AuthResponse(accessToken, refreshTokenValue, member.getId(), member.getName());
+        String childCode = authMember.getRole() == MemberRole.CHILDREN ? authMember.asChildren().getCode() : null;
+        return new MemberResDTO.AuthResponse(accessToken, refreshTokenValue, member.getId(), member.getName(), childCode);
     }
 
     private MemberResDTO.AuthResponse issueAccessTokenOnly(AuthMember authMember) {
         String accessToken = jwtUtil.createAccessToken(authMember);
         Member member = authMember.getMember();
-        return new MemberResDTO.AuthResponse(accessToken, null, member.getId(), member.getName());
+        String childCode = authMember.getRole() == MemberRole.CHILDREN ? authMember.asChildren().getCode() : null;
+        return new MemberResDTO.AuthResponse(accessToken, null, member.getId(), member.getName(), childCode);
     }
 
     private AuthMember loadAuthMember(String email, MemberRole role) {

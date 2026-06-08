@@ -44,7 +44,7 @@ public class AuthService {
                 .hash(passwordEncoder.encode(request.password()))
                 .build();
         parentRepository.save(parent);
-        return new MemberResDTO.AuthResponse(null, null, null, null);
+        return new MemberResDTO.AuthResponse(null, null, null, null, null);
     }
 
     @Transactional
@@ -59,7 +59,13 @@ public class AuthService {
                 .code(code)
                 .build();
         childrenRepository.save(children);
-        return new MemberResDTO.AuthResponse(null, null, null, null);
+        return new MemberResDTO.AuthResponse(
+                null,
+                null,
+                children.getId(),
+                children.getName(),
+                children.getCode()
+        );
     }
 
     private static final int CHILDREN_CODE_MAX_ATTEMPTS = 5;
@@ -132,13 +138,41 @@ public class AuthService {
                 .build());
 
         Member member = authMember.getMember();
-        return new MemberResDTO.AuthResponse(accessToken, refreshTokenValue, member.getId(), member.getName());
+        return new MemberResDTO.AuthResponse(
+                accessToken,
+                refreshTokenValue,
+                member.getId(),
+                member.getName(),
+                childCodeOrNull(member)
+        );
     }
 
     private MemberResDTO.AuthResponse issueAccessTokenOnly(AuthMember authMember) {
         String accessToken = jwtUtil.createAccessToken(authMember);
         Member member = authMember.getMember();
-        return new MemberResDTO.AuthResponse(accessToken, null, member.getId(), member.getName());
+        return new MemberResDTO.AuthResponse(
+                accessToken,
+                null,
+                member.getId(),
+                member.getName(),
+                childCodeOrNull(member)
+        );
+    }
+
+    private String childCodeOrNull(Member member) {
+        if (member instanceof Children children) {
+            return ensureChildrenCode(children);
+        }
+        return null;
+    }
+
+    private String ensureChildrenCode(Children children) {
+        if (children.getCode() != null && !children.getCode().isBlank()) {
+            return children.getCode();
+        }
+        String code = generateUniqueChildrenCode();
+        children.setCode(code);
+        return code;
     }
 
     private AuthMember loadAuthMember(String email, MemberRole role) {

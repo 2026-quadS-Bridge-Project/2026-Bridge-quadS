@@ -56,15 +56,10 @@ public class ScheduleService {
                                     childId, dayOfWeek, yearMonth, weekNumber)
                             .orElseThrow(() -> new IllegalArgumentException("해당 요일의 기본 시간표 설정이 없습니다."));
 
-                    // 이번 달 부모 정책 가져오기
-                    TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
+                    // 이번 달 부모 정책 존재 여부만 확인한다. TimePolicy.baseTime은
+                    // 부모가 설정한 월 총량이므로 일별 allocation 생성만으로 차감하지 않는다.
+                    timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
                             .orElseThrow(() -> new IllegalArgumentException("해당 월의 부모 정책이 설정되지 않았습니다."));
-
-                    // 템플릿에 설정된 설정 시간만큼 기본 시간에서 선차감 진행
-                    policy.deductAvailableTime(template.getBaseMinutes());
-
-                    // 변경된 상태를 DB에 확실하게 즉시 업데이트(UPDATE)
-                    timePolicyRepository.save(policy);
 
                     // 자녀 엔티티 조회
                     Children child = childrenRepository.findById(childId).orElseThrow();
@@ -243,19 +238,6 @@ public class ScheduleService {
         // 가드 로직: 혹시 실제 사용 시간이 준 시간보다 많으면 연산 오류이므로 방어
         if (actualUsedMinutes > totalAllocatedTime) {
             throw new IllegalArgumentException("실제 사용 시간이 할당된 총 시간을 초과할 수 없습니다.");
-        }
-
-        // 남은 시간 계산하기 (할당량 - 실제 사용량)
-        int unusedMinutes = totalAllocatedTime - actualUsedMinutes;
-
-        // 남은 시간이 존재한다면 부모 정책(TimePolicy) 데이터에 환불 절차 진행
-        if (unusedMinutes > 0) {
-            String yearMonth = targetDate.format(DateTimeFormatter.ofPattern("yyyy-MM"));
-            TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
-                    .orElseThrow(() -> new IllegalArgumentException("해당 월의 부모 정책을 찾을 수 없습니다."));
-
-            // TimePolicy의 보상 풀에 남은 시간만큼 플러스(+) 처리
-            policy.refundUnusedTime(unusedMinutes);
         }
 
         // 오늘자 할당 기록의 baseMinutes와 extendedMinutes를 정산된 결과에 맞게 재조정

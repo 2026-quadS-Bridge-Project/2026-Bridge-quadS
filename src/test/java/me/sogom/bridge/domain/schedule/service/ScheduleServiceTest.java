@@ -10,6 +10,7 @@ import me.sogom.bridge.domain.policy.repository.TimePolicyRepository;
 import me.sogom.bridge.domain.schedule.dto.DailyScheduleResponse;
 import me.sogom.bridge.domain.schedule.dto.WeeklyBudgetRequest;
 import me.sogom.bridge.domain.schedule.dto.WeeklyTemplateRequest;
+import me.sogom.bridge.domain.schedule.entity.DailyTimeAllocation;
 import me.sogom.bridge.domain.schedule.entity.WeeklyBudget;
 import me.sogom.bridge.domain.schedule.entity.WeeklyTimeDistribution;
 import me.sogom.bridge.domain.schedule.repository.DailyTimeAllocationRepository;
@@ -32,6 +33,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -86,6 +89,56 @@ class ScheduleServiceTest {
         assertThat(response).isPresent();
         assertThat(response.get().getBaseMinutes()).isEqualTo(45);
         assertThat(response.get().getTargetDate()).isEqualTo(targetDate);
+    }
+
+    @Test
+    void getOrCreateDailyAllocationDoesNotDeductMonthlyBasePolicy() {
+        Parent parent = Parent.builder()
+                .id(11L)
+                .name("parent")
+                .email("parent@test.com")
+                .hash("hash")
+                .build();
+        Children child = Children.builder()
+                .id(22L)
+                .name("하늘")
+                .email("child@test.com")
+                .hash("hash")
+                .parent(parent)
+                .build();
+        TimePolicy policy = TimePolicy.builder()
+                .parent(parent)
+                .child(child)
+                .yearMonth("2026-06")
+                .baseTime(600)
+                .accumulatedRewardTime(30)
+                .build();
+        LocalDate targetDate = LocalDate.of(2026, 6, 9);
+        WeeklyTimeDistribution template = WeeklyTimeDistribution.builder()
+                .child(child)
+                .yearMonth("2026-06")
+                .weekNumber(2)
+                .dayOfWeek(targetDate.getDayOfWeek())
+                .baseMinutes(60)
+                .build();
+
+        when(dailyRepository.findByChildIdAndTargetDate(22L, targetDate))
+                .thenReturn(Optional.empty());
+        when(weeklyRepository.findByChildIdAndDayOfWeekAndYearMonthAndWeekNumber(
+                22L, targetDate.getDayOfWeek(), "2026-06", 2
+        )).thenReturn(Optional.of(template));
+        when(timePolicyRepository.findByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(Optional.of(policy));
+        when(childrenRepository.findById(22L)).thenReturn(Optional.of(child));
+        when(dailyRepository.save(any(DailyTimeAllocation.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        DailyTimeAllocation allocation = scheduleService.getOrCreateDailyAllocation(22L, targetDate);
+
+        assertThat(allocation.getBaseMinutes()).isEqualTo(60);
+        assertThat(policy.getBaseTime()).isEqualTo(600);
+        assertThat(policy.getAccumulatedRewardTime()).isEqualTo(30);
+        verify(timePolicyRepository, never()).save(any(TimePolicy.class));
     }
 
     @Test
@@ -219,6 +272,25 @@ class ScheduleServiceTest {
                 .hasMessageContaining("초과");
 
         verify(weeklyRepository, never()).save(any(WeeklyTimeDistribution.class));
+    }
+
+    @Test
+    void settleDailyTimeLocksActualUsedWithoutRewardRefund() {
+        LocalDate targetDate = LocalDate.of(2026, 6, 9);
+        DailyTimeAllocation allocation = DailyTimeAllocation.builder()
+                .targetDate(targetDate)
+                .baseMinutes(60)
+                .extendedMinutes(10)
+                .build();
+
+        when(dailyRepository.findByChildIdAndTargetDate(22L, targetDate))
+                .thenReturn(Optional.of(allocation));
+
+        DailyTimeAllocation settled = scheduleService.settleDailyTime(22L, targetDate, 30);
+
+        assertThat(settled.getBaseMinutes()).isEqualTo(30);
+        assertThat(settled.getExtendedMinutes()).isZero();
+        verify(timePolicyRepository, never()).findByChildIdAndYearMonth(anyLong(), anyString());
     }
 
     private WeeklyBudgetRequest weeklyBudgetRequest(int weekNumber, int allocatedMinutes) {

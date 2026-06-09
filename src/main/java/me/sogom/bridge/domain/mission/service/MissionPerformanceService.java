@@ -273,19 +273,16 @@ public class MissionPerformanceService {
             throw new MissionException(MissionErrorCode.UNAUTHORIZED_ACCESS);
         }
 
-        // 대기 상태인 미션만 승인 가능
-        if (performance.getStatus() != MissionStatus.PENDING) {
-            throw new IllegalStateException("대기 상태인 미션만 승인할 수 있습니다.");
-        }
+        // 해당 미션의 설정 정보 조회
+        MissionSetting setting = missionSettingRepository.findByMissionId(mission.getId())
+                .orElseThrow(() -> new IllegalArgumentException("해당 미션의 설정 정보를 찾을 수 없습니다."));
+
+        validateParentReviewable(performance, setting);
 
         performance.updateStatusAndReason(
                 MissionStatus.ACCEPTED,
                 "부모님이 미션을 승인했습니다."
         );
-
-        // 해당 미션의 설정 정보 조회
-        MissionSetting setting = missionSettingRepository.findByMissionId(mission.getId())
-                .orElseThrow(() -> new IllegalArgumentException("해당 미션의 설정 정보를 찾을 수 없습니다."));
 
         int rewardTime = setting.getReward();
 
@@ -335,10 +332,10 @@ public class MissionPerformanceService {
             throw new MissionException(MissionErrorCode.UNAUTHORIZED_ACCESS);
         }
 
-        // 대기 상태인 미션만 거절 가능
-        if (performance.getStatus() != MissionStatus.PENDING) {
-            throw new IllegalStateException("대기 상태인 미션만 거절할 수 있습니다.");
-        }
+        MissionSetting setting = missionSettingRepository.findByMissionId(mission.getId())
+                .orElseThrow(() -> new IllegalArgumentException("해당 미션의 설정 정보를 찾을 수 없습니다."));
+
+        validateParentReviewable(performance, setting);
 
         performance.updateStatusAndReason(
                 MissionStatus.REJECTED,
@@ -359,5 +356,12 @@ public class MissionPerformanceService {
                 performance.getId(),
                 "/child-home/mission/" + mission.getId()
         );
+    }
+
+    private void validateParentReviewable(MissionPerformance performance, MissionSetting setting) {
+        if (performance.getStatus() != MissionStatus.PENDING ||
+                setting.getVerificationType() != VerificationType.PARENT) {
+            throw new MissionException(MissionErrorCode.INVALID_MISSION_STATE);
+        }
     }
 }

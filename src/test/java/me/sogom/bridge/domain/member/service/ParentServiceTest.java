@@ -1,19 +1,24 @@
 package me.sogom.bridge.domain.member.service;
 
 import me.sogom.bridge.domain.fcm.service.FcmService;
+import me.sogom.bridge.domain.member.MemberException;
 import me.sogom.bridge.domain.member.entity.Children;
 import me.sogom.bridge.domain.member.entity.Parent;
 import me.sogom.bridge.domain.member.repository.ChildrenRepository;
 import me.sogom.bridge.domain.member.repository.ParentRepository;
+import me.sogom.bridge.domain.notification.entity.NotificationType;
 import me.sogom.bridge.domain.notification.service.NotificationService;
+import me.sogom.bridge.domain.policy.dto.PolicyReqDTO;
 import me.sogom.bridge.domain.policy.entity.TimePolicy;
 import me.sogom.bridge.domain.policy.repository.TimePolicyRepository;
 import me.sogom.bridge.domain.schedule.dto.DailyScheduleResponse;
 import me.sogom.bridge.domain.schedule.dto.TimeSummaryResponse;
 import me.sogom.bridge.domain.schedule.service.ScheduleService;
+import me.sogom.bridge.global.security.entity.MemberRole;
 import me.sogom.bridge.global.storage.PhotoUrlResolver;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -22,6 +27,13 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -46,6 +58,100 @@ class ParentServiceTest {
 
     @InjectMocks
     private ParentService parentService;
+
+    @Test
+    void setTimePolicyCreatesMonthlyPolicyAndNotifiesChild() {
+        Parent parent = stubParentChild();
+        Children child = parent.getChildren().get(0);
+        when(timePolicyRepository.findByChildIdAndYearMonth(2L, YEAR_MONTH))
+                .thenReturn(Optional.empty());
+        ArgumentCaptor<TimePolicy> policyCaptor = ArgumentCaptor.forClass(TimePolicy.class);
+
+        parentService.setTimePolicy(
+                1L,
+                new PolicyReqDTO.SetTimePolicyRequest(2L, YEAR_MONTH, 600)
+        );
+
+        verify(timePolicyRepository).save(policyCaptor.capture());
+        TimePolicy savedPolicy = policyCaptor.getValue();
+        assertThat(savedPolicy.getParent()).isSameAs(parent);
+        assertThat(savedPolicy.getChild()).isSameAs(child);
+        assertThat(savedPolicy.getYearMonth()).isEqualTo(YEAR_MONTH);
+        assertThat(savedPolicy.getBaseTime()).isEqualTo(600);
+        assertThat(savedPolicy.getAccumulatedRewardTime()).isZero();
+        verify(fcmService).sendSilentPush(2L, MemberRole.CHILDREN, "TIME_POLICY_UPDATED");
+        verify(notificationService).createNotification(
+                eq(2L),
+                eq(MemberRole.CHILDREN),
+                eq("시간 설정 완료"),
+                contains("이번 달 사용 시간을 설정"),
+                eq(NotificationType.GENERAL),
+                eq(2L),
+                isNull(),
+                isNull(),
+                eq("/child-home/time-setup")
+        );
+    }
+
+    @Test
+    void setTimePolicyUpdatesExistingMonthlyPolicy() {
+        Parent parent = stubParentChild();
+        Children child = parent.getChildren().get(0);
+        TimePolicy existingPolicy = TimePolicy.builder()
+                .parent(parent)
+                .child(child)
+                .yearMonth(YEAR_MONTH)
+                .baseTime(300)
+                .accumulatedRewardTime(45)
+                .build();
+        when(timePolicyRepository.findByChildIdAndYearMonth(2L, YEAR_MONTH))
+                .thenReturn(Optional.of(existingPolicy));
+
+        parentService.setTimePolicy(
+                1L,
+                new PolicyReqDTO.SetTimePolicyRequest(2L, YEAR_MONTH, 600)
+        );
+
+        assertThat(existingPolicy.getBaseTime()).isEqualTo(600);
+        assertThat(existingPolicy.getAccumulatedRewardTime()).isEqualTo(45);
+        verify(timePolicyRepository, never()).save(any(TimePolicy.class));
+        verify(fcmService).sendSilentPush(2L, MemberRole.CHILDREN, "TIME_POLICY_UPDATED");
+    }
+
+    @Test
+    void setTimePolicyRejectsChildFromAnotherParent() {
+        Parent parent = Parent.builder()
+                .id(1L)
+                .name("parent")
+                .email("parent@test.com")
+                .hash("hash")
+                .build();
+        Parent otherParent = Parent.builder()
+                .id(99L)
+                .name("other")
+                .email("other@test.com")
+                .hash("hash")
+                .build();
+        Children child = Children.builder()
+                .id(2L)
+                .name("child")
+                .email("child@test.com")
+                .hash("hash")
+                .parent(otherParent)
+                .build();
+        when(parentRepository.findById(1L)).thenReturn(Optional.of(parent));
+        when(childrenRepository.findById(2L)).thenReturn(Optional.of(child));
+
+        assertThatThrownBy(() -> parentService.setTimePolicy(
+                1L,
+                new PolicyReqDTO.SetTimePolicyRequest(2L, YEAR_MONTH, 600)
+        ))
+                .isInstanceOf(MemberException.class);
+
+        verify(timePolicyRepository, never()).findByChildIdAndYearMonth(any(), any());
+        verify(timePolicyRepository, never()).save(any(TimePolicy.class));
+        verify(fcmService, never()).sendSilentPush(any(), any(), any());
+    }
 
     @Test
     void childTimeSummaryMarksNoParentPolicyWhenMonthlyPolicyIsMissing() {

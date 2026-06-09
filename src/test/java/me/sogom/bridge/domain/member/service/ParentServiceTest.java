@@ -200,6 +200,37 @@ class ParentServiceTest {
     }
 
     @Test
+    void childTimeSummaryRejectsChildFromAnotherParent() {
+        Parent parent = Parent.builder()
+                .id(1L)
+                .name("parent")
+                .email("parent@test.com")
+                .hash("hash")
+                .build();
+        Parent otherParent = Parent.builder()
+                .id(99L)
+                .name("other")
+                .email("other@test.com")
+                .hash("hash")
+                .build();
+        Children child = Children.builder()
+                .id(2L)
+                .name("child")
+                .email("child@test.com")
+                .hash("hash")
+                .parent(otherParent)
+                .build();
+        when(parentRepository.findById(1L)).thenReturn(Optional.of(parent));
+        when(childrenRepository.findById(2L)).thenReturn(Optional.of(child));
+
+        assertThatThrownBy(() -> parentService.getChildTimeSummary(1L, 2L, TODAY))
+                .isInstanceOf(MemberException.class);
+
+        verify(scheduleService, never()).yearMonthOf(any());
+        verify(timePolicyRepository, never()).findByChildIdAndYearMonth(any(), any());
+    }
+
+    @Test
     void childTimeSummaryIncludesParentBasePolicyMinutesBeforeChildPlan() {
         TimePolicy policy = stubParentChildAndPolicy();
         when(scheduleService.hasChildPlan(2L, YEAR_MONTH)).thenReturn(false);

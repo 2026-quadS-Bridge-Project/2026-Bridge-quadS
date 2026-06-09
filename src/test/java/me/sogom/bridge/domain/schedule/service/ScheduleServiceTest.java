@@ -27,12 +27,14 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
@@ -385,6 +387,19 @@ class ScheduleServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("0분보다 커야");
 
+        assertThatThrownBy(() -> scheduleService.createWeeklyBudgets(
+                22L,
+                "2026-06",
+                Arrays.asList(
+                        weeklyBudgetRequest(1, 30),
+                        weeklyBudgetRequest(2, 30),
+                        weeklyBudgetRequest(3, 30),
+                        null
+                )
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("1~4주차");
+
         verify(weeklyBudgetRepository, never()).saveAll(any());
     }
 
@@ -473,6 +488,34 @@ class ScheduleServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("초과");
 
+        verify(weeklyRepository, never()).save(any(WeeklyTimeDistribution.class));
+    }
+
+    @Test
+    void updateWeeklyTemplateRejectsInvalidTemplateRequestValues() {
+        assertThatThrownBy(() -> scheduleService.updateWeeklyTemplate(
+                22L,
+                weeklyTemplateRequest("2026-06", 5, DayOfWeek.MONDAY, 40)
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("1~4주차");
+
+        assertThatThrownBy(() -> scheduleService.updateWeeklyTemplate(
+                22L,
+                weeklyTemplateRequest("2026-06", 1, DayOfWeek.MONDAY, -1)
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("음수");
+
+        assertThatThrownBy(() -> scheduleService.updateWeeklyTemplate(
+                22L,
+                weeklyTemplateRequest("", 1, DayOfWeek.MONDAY, 40)
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("올바르지");
+
+        verify(weeklyBudgetRepository, never())
+                .findByChildIdAndYearMonthAndWeekNumber(anyLong(), anyString(), anyInt());
         verify(weeklyRepository, never()).save(any(WeeklyTimeDistribution.class));
     }
 

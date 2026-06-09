@@ -167,6 +167,8 @@ public class ScheduleService {
     //요일별 기본 템플릿 설정 초과 등록 버그 수정
     @Transactional
     public void updateWeeklyTemplate(Long childId, WeeklyTemplateRequest request) {
+        validateWeeklyTemplateRequest(request);
+
         // 해당 월/주차에 자녀가 설정해둔 예산(WeeklyBudget) 가져오기
         WeeklyBudget weeklyBudget = weeklyBudgetRepository.findByChildIdAndYearMonthAndWeekNumber(
                         childId, request.getYearMonth(), request.getWeekNumber())
@@ -297,6 +299,9 @@ public class ScheduleService {
         if (requests == null) {
             throw new IllegalArgumentException("1~4주차 예산을 모두 한 번씩 분배해야 합니다.");
         }
+        if (requests.stream().anyMatch(request -> request == null)) {
+            throw new IllegalArgumentException("1~4주차 예산을 모두 한 번씩 분배해야 합니다.");
+        }
 
         Set<Integer> requiredWeeks = Set.of(1, 2, 3, 4);
         Set<Integer> requestedWeeks = requests.stream()
@@ -311,6 +316,21 @@ public class ScheduleService {
                 .anyMatch(request -> request.getAllocatedMinutes() <= 0);
         if (hasNonPositiveBudget) {
             throw new IllegalArgumentException("각 주차 예산은 0분보다 커야 합니다.");
+        }
+    }
+
+    private void validateWeeklyTemplateRequest(WeeklyTemplateRequest request) {
+        if (request == null
+                || request.getYearMonth() == null
+                || request.getYearMonth().isBlank()
+                || request.getDayOfWeek() == null) {
+            throw new IllegalArgumentException("요일별 시간 설정 값이 올바르지 않습니다.");
+        }
+        if (request.getWeekNumber() < 1 || request.getWeekNumber() > 4) {
+            throw new IllegalArgumentException("주차는 1~4주차만 설정할 수 있습니다.");
+        }
+        if (request.getBaseMinutes() < 0) {
+            throw new IllegalArgumentException("요일별 기본 시간은 음수일 수 없습니다.");
         }
     }
 }

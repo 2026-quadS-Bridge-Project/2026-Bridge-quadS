@@ -231,7 +231,8 @@ public class ScheduleService {
         routineRepository.delete(routine);
     }
     /**
-     하루 마무리 시 실제 사용 시간을 기록하고 남은 시간을 보상 풀로 환불하기
+     하루 마무리 또는 앱 pause 시점에 실제 사용 시간을 coarse sync로 기록한다.
+     남은 시간을 보상 풀로 환불하지 않는다.
      * @param actualUsedMinutes 자녀가 오늘 실제로 스마트폰을 사용한 시간 (분 단위)
      */
     @Transactional

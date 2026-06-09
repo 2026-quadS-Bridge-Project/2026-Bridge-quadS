@@ -106,7 +106,7 @@ public class ScheduleController {
     public ApiResponse<String> deleteRoutine(
             @AuthenticationPrincipal AuthMember user,
             @PathVariable Long routineId) {
-        scheduleService.deleteRoutine(routineId);
+        scheduleService.deleteRoutine(user.asChildren().getId(), routineId);
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, "일정이 정상적으로 삭제되었습니다.");
     }
 

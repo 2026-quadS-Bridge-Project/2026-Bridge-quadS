@@ -20,6 +20,8 @@ import me.sogom.bridge.domain.schedule.repository.DailyTimeAllocationRepository;
 import me.sogom.bridge.domain.schedule.repository.WeeklyBudgetRepository;
 import me.sogom.bridge.domain.schedule.repository.WeeklyRoutineRepository;
 import me.sogom.bridge.domain.schedule.repository.WeeklyTimeDistributionRepository;
+import me.sogom.bridge.global.apiPayload.code.GeneralErrorCode;
+import me.sogom.bridge.global.apiPayload.exception.ProjectException;
 import me.sogom.bridge.global.security.entity.MemberRole;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -228,8 +230,12 @@ public class ScheduleService {
 
     //고정 일정 삭제
     @Transactional
-    public void deleteRoutine(Long routineId) {
-        WeeklyRoutine routine = routineRepository.findById(routineId).orElseThrow();
+    public void deleteRoutine(Long childId, Long routineId) {
+        WeeklyRoutine routine = routineRepository.findById(routineId)
+                .orElseThrow(() -> new ProjectException(GeneralErrorCode.NOT_FOUND));
+        if (routine.getChild() == null || !routine.getChild().getId().equals(childId)) {
+            throw new ProjectException(GeneralErrorCode.FORBIDDEN);
+        }
         routineRepository.delete(routine);
     }
     /**

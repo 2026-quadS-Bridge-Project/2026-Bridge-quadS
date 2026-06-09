@@ -12,11 +12,14 @@ import me.sogom.bridge.domain.schedule.dto.WeeklyBudgetRequest;
 import me.sogom.bridge.domain.schedule.dto.WeeklyTemplateRequest;
 import me.sogom.bridge.domain.schedule.entity.DailyTimeAllocation;
 import me.sogom.bridge.domain.schedule.entity.WeeklyBudget;
+import me.sogom.bridge.domain.schedule.entity.WeeklyRoutine;
 import me.sogom.bridge.domain.schedule.entity.WeeklyTimeDistribution;
 import me.sogom.bridge.domain.schedule.repository.DailyTimeAllocationRepository;
 import me.sogom.bridge.domain.schedule.repository.WeeklyBudgetRepository;
 import me.sogom.bridge.domain.schedule.repository.WeeklyRoutineRepository;
 import me.sogom.bridge.domain.schedule.repository.WeeklyTimeDistributionRepository;
+import me.sogom.bridge.global.apiPayload.code.GeneralErrorCode;
+import me.sogom.bridge.global.apiPayload.exception.ProjectException;
 import me.sogom.bridge.global.security.entity.MemberRole;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +30,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -520,6 +524,44 @@ class ScheduleServiceTest {
     }
 
     @Test
+    void deleteRoutineAllowsOwningChildRoutine() {
+        Children child = Children.builder()
+                .id(22L)
+                .name("하늘")
+                .email("child@test.com")
+                .hash("hash")
+                .build();
+        WeeklyRoutine routine = weeklyRoutine(child);
+
+        when(routineRepository.findById(700L)).thenReturn(Optional.of(routine));
+
+        scheduleService.deleteRoutine(22L, 700L);
+
+        verify(routineRepository).delete(routine);
+    }
+
+    @Test
+    void deleteRoutineRejectsOtherChildRoutine() {
+        Children otherChild = Children.builder()
+                .id(33L)
+                .name("바다")
+                .email("other-child@test.com")
+                .hash("hash")
+                .build();
+        WeeklyRoutine routine = weeklyRoutine(otherChild);
+
+        when(routineRepository.findById(700L)).thenReturn(Optional.of(routine));
+
+        assertThatThrownBy(() -> scheduleService.deleteRoutine(22L, 700L))
+                .isInstanceOf(ProjectException.class)
+                .satisfies(exception ->
+                        assertThat(((ProjectException) exception).getErrorCode())
+                                .isEqualTo(GeneralErrorCode.FORBIDDEN));
+
+        verify(routineRepository, never()).delete(any(WeeklyRoutine.class));
+    }
+
+    @Test
     void settleDailyTimeLocksActualUsedWithoutRewardRefund() {
         LocalDate targetDate = LocalDate.of(2026, 6, 9);
         DailyTimeAllocation allocation = DailyTimeAllocation.builder()
@@ -597,6 +639,16 @@ class ScheduleServiceTest {
                 .weekNumber(weekNumber)
                 .dayOfWeek(dayOfWeek)
                 .baseMinutes(baseMinutes)
+                .build();
+    }
+
+    private WeeklyRoutine weeklyRoutine(Children child) {
+        return WeeklyRoutine.builder()
+                .child(child)
+                .dayOfWeek(DayOfWeek.MONDAY)
+                .startTime(LocalTime.of(9, 0))
+                .endTime(LocalTime.of(10, 0))
+                .title("고정 시간")
                 .build();
     }
 

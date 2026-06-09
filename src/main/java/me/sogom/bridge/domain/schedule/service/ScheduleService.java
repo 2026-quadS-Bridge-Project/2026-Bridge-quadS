@@ -146,6 +146,12 @@ public class ScheduleService {
     //자녀가 여분(보상) 시간을 사용해 오늘 시간을 연장할 때
     @Transactional
     public DailyTimeAllocation extendDailyTime(Long childId, LocalDate targetDate, int extraMinutes) {
+        if (targetDate == null) {
+            throw new IllegalArgumentException("연장할 날짜를 입력해 주세요.");
+        }
+        if (extraMinutes <= 0) {
+            throw new IllegalArgumentException("연장할 시간은 1분 이상이어야 합니다.");
+        }
 
         //날짜 변환 ("yyyy-MM" 형태)
         String yearMonth = targetDate.format(DateTimeFormatter.ofPattern("yyyy-MM"));

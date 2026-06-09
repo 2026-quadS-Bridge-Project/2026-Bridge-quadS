@@ -227,6 +227,24 @@ class ScheduleServiceTest {
     }
 
     @Test
+    void extendDailyTimeRejectsInvalidRequestValuesBeforeRepositoryLookup() {
+        assertThatThrownBy(() -> scheduleService.extendDailyTime(22L, null, 15))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("날짜");
+
+        assertThatThrownBy(() -> scheduleService.extendDailyTime(
+                22L,
+                LocalDate.of(2026, 6, 9),
+                0
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("1분");
+
+        verify(timePolicyRepository, never()).findByChildIdAndYearMonth(anyLong(), anyString());
+        verify(dailyRepository, never()).findByChildIdAndTargetDate(anyLong(), any());
+    }
+
+    @Test
     void completeTimePlanNotifiesParent() {
         Parent parent = Parent.builder()
                 .id(11L)

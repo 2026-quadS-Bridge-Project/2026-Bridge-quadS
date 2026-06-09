@@ -11,15 +11,22 @@ import me.sogom.bridge.domain.member.entity.MemberStatus;
 import me.sogom.bridge.domain.member.entity.Parent;
 import me.sogom.bridge.domain.member.repository.ChildrenRepository;
 import me.sogom.bridge.domain.member.repository.ParentRepository;
+import me.sogom.bridge.domain.notification.entity.NotificationType;
+import me.sogom.bridge.domain.notification.service.NotificationService;
 import me.sogom.bridge.domain.policy.dto.PolicyReqDTO;
 import me.sogom.bridge.domain.policy.entity.TimePolicy;
 import me.sogom.bridge.domain.policy.repository.TimePolicyRepository;
+import me.sogom.bridge.domain.schedule.dto.DailyScheduleResponse;
+import me.sogom.bridge.domain.schedule.dto.TimeSummaryResponse;
+import me.sogom.bridge.domain.schedule.service.ScheduleService;
 import me.sogom.bridge.global.security.entity.MemberRole;
 import me.sogom.bridge.global.storage.PhotoUrlResolver;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,9 +36,11 @@ public class ParentService {
     private final ParentRepository parentRepository;
     private final ChildrenRepository childrenRepository;
     private final TimePolicyRepository timePolicyRepository;
+    private final ScheduleService scheduleService;
 
     // FCM 서비스
     private final FcmService fcmService;
+    private final NotificationService notificationService;
 
     // 프로필 이미지 key → presigned URL 변환
     private final PhotoUrlResolver photoUrlResolver;
@@ -103,28 +112,28 @@ public class ParentService {
                 .orElseThrow(() -> new MemberException(MemberErrorCode.CHILDREN_NOT_FOUND));
 
         // 자녀가 해당 부모와 연결되어 있는지 확인
-        if (!child.getParent().getId().equals(parentId)) {
-            throw new MemberException(MemberErrorCode.CHILDREN_PARENT_MISMATCH);
+        validateParentChild(parentId, child);
+
+        Optional<TimePolicy> existingPolicy = timePolicyRepository.findByChildIdAndYearMonth(
+                request.childId(),
+                request.yearMonth()
+        );
+        if (existingPolicy.isPresent()) {
+            TimePolicy policy = existingPolicy.get();
+            if (policy.getBaseTime() != request.baseTime()) {
+                policy.updateBaseTime(request.baseTime());
+                scheduleService.clearChildPlan(request.childId(), request.yearMonth());
+            }
+        } else {
+            TimePolicy newPolicy = TimePolicy.builder()
+                    .parent(parent)
+                    .child(child)
+                    .yearMonth(request.yearMonth())
+                    .baseTime(request.baseTime())
+                    .accumulatedRewardTime(0)
+                    .build();
+            timePolicyRepository.save(newPolicy);
         }
-
-        timePolicyRepository.findByChildIdAndYearMonth(request.childId(), request.yearMonth())
-                .ifPresentOrElse(
-
-                        // 이미 존재하는 경우 기본 시간 수정
-                        policy -> policy.updateBaseTime(request.baseTime()),
-
-                        // 존재하지 않는 경우 새 정책 생성
-                        () -> {
-                            TimePolicy newPolicy = TimePolicy.builder()
-                                    .parent(parent)
-                                    .child(child)
-                                    .yearMonth(request.yearMonth())
-                                    .baseTime(request.baseTime())
-                                    .accumulatedRewardTime(0)
-                                    .build();
-                            timePolicyRepository.save(newPolicy);
-                        }
-                );
 
         // 자녀 앱 정책 갱신 Silent Push 전송
         fcmService.sendSilentPush(
@@ -132,5 +141,72 @@ public class ParentService {
                 MemberRole.CHILDREN,
                 "TIME_POLICY_UPDATED"
         );
+
+        notificationService.createNotification(
+                child.getId(),
+                MemberRole.CHILDREN,
+                "시간 설정 완료",
+                "부모님이 이번 달 사용 시간을 설정했습니다.",
+                NotificationType.GENERAL,
+                child.getId(),
+                null,
+                null,
+                "/child-home/time-setup"
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public TimeSummaryResponse getChildTimeSummary(Long parentId, Long childId, LocalDate date) {
+        parentRepository.findById(parentId)
+                .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+
+        Children child = childrenRepository.findById(childId)
+                .orElseThrow(() -> new MemberException(MemberErrorCode.CHILDREN_NOT_FOUND));
+        validateParentChild(parentId, child);
+
+        String yearMonth = scheduleService.yearMonthOf(date);
+        Optional<TimePolicy> policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth);
+        if (policy.isEmpty()) {
+            return TimeSummaryResponse.builder()
+                    .parentPolicyExists(false)
+                    .childPlanExists(false)
+                    .todayScheduleStatus("noParentPolicy")
+                    .yearMonth(yearMonth)
+                    .basePolicyMinutes(0)
+                    .todaySchedule(null)
+                    .rewardPoolMinutes(0)
+                    .build();
+        }
+
+        TimePolicy activePolicy = policy.get();
+        boolean childPlanExists = scheduleService.hasChildPlan(childId, yearMonth);
+        if (!childPlanExists) {
+            return TimeSummaryResponse.builder()
+                    .parentPolicyExists(true)
+                    .childPlanExists(false)
+                    .todayScheduleStatus("waitingChildPlan")
+                    .yearMonth(yearMonth)
+                    .basePolicyMinutes(activePolicy.getBaseTime())
+                    .todaySchedule(null)
+                    .rewardPoolMinutes(activePolicy.getAccumulatedRewardTime())
+                    .build();
+        }
+
+        Optional<DailyScheduleResponse> dailySchedule = scheduleService.findDailySchedulePreview(childId, date);
+        return TimeSummaryResponse.builder()
+                .parentPolicyExists(true)
+                .childPlanExists(true)
+                .todayScheduleStatus(dailySchedule.isPresent() ? "available" : "templateMissing")
+                .yearMonth(yearMonth)
+                .basePolicyMinutes(activePolicy.getBaseTime())
+                .todaySchedule(dailySchedule.orElse(null))
+                .rewardPoolMinutes(activePolicy.getAccumulatedRewardTime())
+                .build();
+    }
+
+    private void validateParentChild(Long parentId, Children child) {
+        if (child.getParent() == null || !child.getParent().getId().equals(parentId)) {
+            throw new MemberException(MemberErrorCode.CHILDREN_PARENT_MISMATCH);
+        }
     }
 }

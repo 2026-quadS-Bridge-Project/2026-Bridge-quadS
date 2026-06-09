@@ -74,7 +74,11 @@ public class MissionService {
                 MemberRole.CHILDREN,
                 "새 미션이 생성되었습니다.",
                 mission.getTitle(),
-                NotificationType.MISSION_CREATED
+                NotificationType.MISSION_CREATED,
+                child.getId(),
+                mission.getId(),
+                null,
+                "/child-home/mission/" + mission.getId()
         );
 
         return MissionResDTO.MissionResponse.of(mission, setting);
@@ -96,9 +100,15 @@ public class MissionService {
     }
 
     @Transactional(readOnly = true)
-    public MissionResDTO.MissionResponse getMissionDetail(Long missionId) {
+    public MissionResDTO.MissionResponse getMissionDetail(
+            Long missionId,
+            MemberRole viewerRole,
+            Long viewerId
+    ) {
         Mission mission = missionRepository.findById(missionId)
                 .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
+
+        validateMissionViewer(mission, viewerRole, viewerId);
 
         MissionSetting setting = missionSettingRepository.findByMissionId(missionId)
                 .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
@@ -113,5 +123,19 @@ public class MissionService {
                 .orElseThrow(() -> new MemberException(MemberErrorCode.CHILDREN_NOT_FOUND));
 
         return missionSettingRepository.findMissionSummariesByChildId(child.getId());
+    }
+
+    private void validateMissionViewer(Mission mission, MemberRole viewerRole, Long viewerId) {
+        if (viewerRole == MemberRole.PARENT &&
+                mission.getParent() != null &&
+                mission.getParent().getId().equals(viewerId)) {
+            return;
+        }
+        if (viewerRole == MemberRole.CHILDREN &&
+                mission.getChild() != null &&
+                mission.getChild().getId().equals(viewerId)) {
+            return;
+        }
+        throw new MissionException(MissionErrorCode.UNAUTHORIZED_ACCESS);
     }
 }

@@ -5,6 +5,8 @@ import me.sogom.bridge.domain.notification.entity.Notification;
 import me.sogom.bridge.domain.notification.entity.NotificationType;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class NotificationResDTO {
 
@@ -21,7 +23,17 @@ public class NotificationResDTO {
 
             NotificationType notificationType,
 
-            LocalDateTime createdAt
+            LocalDateTime createdAt,
+
+            Long childId,
+
+            Long missionId,
+
+            Long performanceId,
+
+            String deeplink,
+
+            Map<String, Object> payload
 
     ) {
 
@@ -35,7 +47,38 @@ public class NotificationResDTO {
                     .isRead(notification.getIsRead())
                     .notificationType(notification.getNotificationType())
                     .createdAt(notification.getCreatedAt())
+                    .childId(notification.getChildId())
+                    .missionId(notification.getMissionId())
+                    .performanceId(notification.getPerformanceId())
+                    .deeplink(notification.getTargetRoute())
+                    .payload(payloadOf(notification))
                     .build();
+        }
+
+        private static Map<String, Object> payloadOf(Notification notification) {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            if (notification.getId() != null) {
+                payload.put("notificationId", notification.getId().toString());
+            }
+            if (notification.getNotificationType() != null) {
+                payload.put("notificationType", notification.getNotificationType().name());
+                payload.put("type", notification.getNotificationType().name());
+            }
+            if (notification.getChildId() != null) {
+                payload.put("childId", notification.getChildId().toString());
+                payload.put("childrenId", notification.getChildId().toString());
+            }
+            if (notification.getMissionId() != null) {
+                payload.put("missionId", notification.getMissionId().toString());
+            }
+            if (notification.getPerformanceId() != null) {
+                payload.put("performanceId", notification.getPerformanceId().toString());
+            }
+            if (notification.getTargetRoute() != null && !notification.getTargetRoute().isBlank()) {
+                payload.put("targetRoute", notification.getTargetRoute());
+                payload.put("deeplink", notification.getTargetRoute());
+            }
+            return payload;
         }
     }
 }

@@ -7,11 +7,14 @@ import me.sogom.bridge.domain.member.dto.req.MemberReqDTO;
 import me.sogom.bridge.domain.member.dto.res.MemberResDTO;
 import me.sogom.bridge.domain.member.service.ParentService;
 import me.sogom.bridge.domain.policy.dto.PolicyReqDTO;
+import me.sogom.bridge.domain.schedule.dto.TimeSummaryResponse;
 import me.sogom.bridge.global.apiPayload.ApiResponse;
 import me.sogom.bridge.global.security.entity.AuthMember;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -31,7 +34,7 @@ public class ParentController {
     public ApiResponse<MemberResDTO.ChildrenInfoResponse> registerChild(
             @AuthenticationPrincipal AuthMember authMember,
             @RequestBody @Valid MemberReqDTO.RegisterChildRequest request) {
-        Long parentId = authMember.getMember().getId();
+        Long parentId = authMember.asParent().getId();
         MemberResDTO.ChildrenInfoResponse response = parentService.registerChild(parentId, request);
         return ApiResponse.onSuccess(MemberSuccessCode.CHILDREN_REGISTER_SUCCESS, response);
     }
@@ -44,7 +47,7 @@ public class ParentController {
     @GetMapping("/children")
     public ApiResponse<List<MemberResDTO.ChildrenInfoResponse>> getChildrenList(
             @AuthenticationPrincipal AuthMember authMember) {
-        Long parentId = authMember.getMember().getId();
+        Long parentId = authMember.asParent().getId();
         List<MemberResDTO.ChildrenInfoResponse> childrenList = parentService.getChildrenList(parentId);
         return ApiResponse.onSuccess(MemberSuccessCode.CHILDREN_LIST_SUCCESS, childrenList);
     }
@@ -59,9 +62,20 @@ public class ParentController {
     public ApiResponse<Void> setTimePolicy(
             @AuthenticationPrincipal AuthMember authMember,
             @RequestBody @Valid PolicyReqDTO.SetTimePolicyRequest request) {
-        Long parentId = authMember.getMember().getId();
+        Long parentId = authMember.asParent().getId();
         parentService.setTimePolicy(parentId, request);
         return ApiResponse.onSuccess(MemberSuccessCode.TIME_POLICY_SET_SUCCESS, null);
     }
-}
 
+    @GetMapping("/children/{childId}/time-summary")
+    public ApiResponse<TimeSummaryResponse> getChildTimeSummary(
+            @AuthenticationPrincipal AuthMember authMember,
+            @PathVariable Long childId,
+            @RequestParam(required = false)
+            @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date) {
+        Long parentId = authMember.asParent().getId();
+        LocalDate targetDate = date != null ? date : LocalDate.now();
+        TimeSummaryResponse response = parentService.getChildTimeSummary(parentId, childId, targetDate);
+        return ApiResponse.onSuccess(MemberSuccessCode.CHILDREN_LIST_SUCCESS, response);
+    }
+}

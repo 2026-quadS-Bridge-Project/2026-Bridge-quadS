@@ -78,9 +78,23 @@ public class MissionController {
     //미션 상세정보 조회 API
     @GetMapping("/{missionId}")
     public ApiResponse<MissionResDTO.MissionResponse> getMissionDetail(
-            @PathVariable("missionId") Long missionId) {
+            @PathVariable("missionId") Long missionId,
+            @AuthenticationPrincipal AuthMember authMember) {
 
-        MissionResDTO.MissionResponse response = missionService.getMissionDetail(missionId);
+        Long viewerId;
+        if (authMember.getRole() == MemberRole.PARENT) {
+            viewerId = authMember.asParent().getId();
+        } else if (authMember.getRole() == MemberRole.CHILDREN) {
+            viewerId = authMember.asChildren().getId();
+        } else {
+            throw new ProjectException(GeneralErrorCode.FORBIDDEN);
+        }
+
+        MissionResDTO.MissionResponse response = missionService.getMissionDetail(
+                missionId,
+                authMember.getRole(),
+                viewerId
+        );
         return ApiResponse.onSuccess(MissionSuccessCode.MISSION_LIST_SUCCESS, response);
     }
 
@@ -103,8 +117,16 @@ public class MissionController {
             @PathVariable("missionId") Long missionId,
             @AuthenticationPrincipal AuthMember authMember) {
 
-        Long parentId = authMember.asParent().getId();
-        MissionPerformanceResDTO.MissionPerformanceResponse response = performanceService.getMissionPerformance(missionId, parentId);
+        MissionPerformanceResDTO.MissionPerformanceResponse response;
+        if (authMember.getRole() == MemberRole.PARENT) {
+            Long parentId = authMember.asParent().getId();
+            response = performanceService.getMissionPerformance(missionId, parentId);
+        } else if (authMember.getRole() == MemberRole.CHILDREN) {
+            Long childId = authMember.asChildren().getId();
+            response = performanceService.getChildMissionPerformance(missionId, childId);
+        } else {
+            throw new ProjectException(GeneralErrorCode.FORBIDDEN);
+        }
         return ApiResponse.onSuccess(MissionSuccessCode.MISSION_PERFORMANCE_RETRIEVE_SUCCESS, response);
     }
 

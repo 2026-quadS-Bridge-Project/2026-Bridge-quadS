@@ -38,6 +38,16 @@ public class GeneralExceptionAdvice {
                 .body(ApiResponse.onFailure(code, message));
     }
 
+    // 서비스 레이어의 선행 조건/검증 실패는 클라이언트가 바로 수정할 수 있는 400으로 응답한다.
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<String>> handleIllegalArgumentException(
+            IllegalArgumentException e
+    ) {
+        BaseErrorCode code = GeneralErrorCode.BAD_REQUEST;
+        return ResponseEntity.status(code.getStatus())
+                .body(ApiResponse.onFailure(code, e.getMessage()));
+    }
+
     // 그 외의 정의되지 않은 모든 예외 처리
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<String>> handleException(

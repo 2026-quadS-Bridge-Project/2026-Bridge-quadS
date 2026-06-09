@@ -60,6 +60,16 @@ public class MissionPerformanceService {
         assertMissionIsNotCompleted(missionId);
         assertMissionIsNotPendingReview(missionId);
 
+        // 미션 설정 정보 조회
+        MissionSetting setting = missionSettingRepository.findByMissionId(missionId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 미션의 설정 정보를 찾을 수 없습니다."));
+
+        // 인증 사진을 S3에 업로드하고 key를 performance에 저장 (모든 인증 방식 공통)
+        String proofImageKey = storageService.upload(
+                image,
+                PhotoCategory.MISSION.keyPrefix(MemberRole.CHILDREN.name(), childId)
+        );
+
         // 2. [PENDING 먼저 저장] AI를 호출하기 전에 우선 수행 내역을 'PENDING' 상태로 DB에 저장합니다.
         MissionPerformance performance = MissionPerformance.builder()
                 .mission(mission)
@@ -67,18 +77,9 @@ public class MissionPerformanceService {
                 .status(MissionStatus.PENDING) // 무조건 대기 상태로 시작!
                 .reason("AI가 사진을 분석하고 있습니다.")
                 .build();
+        performance.updateProofImageKey(proofImageKey);
         performanceRepository.save(performance);
 
-        // 인증 사진을 S3에 업로드하고 key를 performance에 저장 (모든 인증 방식 공통)
-        String proofImageKey = storageService.upload(
-                image,
-                PhotoCategory.MISSION.keyPrefix(MemberRole.CHILDREN.name(), childId)
-        );
-        performance.updateProofImageKey(proofImageKey);
-
-        // 미션 설정 정보 조회
-        MissionSetting setting = missionSettingRepository.findByMissionId(missionId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 미션의 설정 정보를 찾을 수 없습니다."));
         MissionCategory category = setting.getCategory();   //카테고리를 미션id로 받아옴
         String prompt = setting.getDescription();   //부모가 미션 세팅 시 미션 설명 적은걸 가져옴
 

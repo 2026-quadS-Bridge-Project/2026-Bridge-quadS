@@ -345,6 +345,60 @@ class MissionPerformanceServiceTest {
     }
 
     @Test
+    void verifyAndSaveMissionDoesNotUploadPhotoWhenMissionSettingIsMissing() {
+        Parent parent = parent();
+        Children child = child(parent);
+        Mission mission = mission(parent, child);
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "proof.jpg",
+                "image/jpeg",
+                new byte[]{1}
+        );
+
+        when(missionRepository.findById(100L)).thenReturn(Optional.of(mission));
+        when(childrenRepository.findById(22L)).thenReturn(Optional.of(child));
+        when(performanceRepository.findTopByMissionIdOrderByIdDesc(100L))
+                .thenReturn(Optional.empty());
+        when(missionSettingRepository.findByMissionId(100L)).thenReturn(Optional.empty());
+
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> missionPerformanceService.verifyAndSaveMission(100L, 22L, image))
+                .withMessageContaining("설정");
+
+        verifyNoInteractions(storageService, aiService, timePolicyRepository, notificationService);
+        verify(performanceRepository, never()).save(any());
+    }
+
+    @Test
+    void verifyAndSaveMissionDoesNotCreatePendingPerformanceWhenPhotoUploadFails() {
+        Parent parent = parent();
+        Children child = child(parent);
+        Mission mission = mission(parent, child);
+        MissionSetting setting = setting(mission, VerificationType.PARENT, 30);
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "proof.jpg",
+                "image/jpeg",
+                new byte[]{1}
+        );
+
+        when(missionRepository.findById(100L)).thenReturn(Optional.of(mission));
+        when(childrenRepository.findById(22L)).thenReturn(Optional.of(child));
+        when(performanceRepository.findTopByMissionIdOrderByIdDesc(100L))
+                .thenReturn(Optional.empty());
+        when(missionSettingRepository.findByMissionId(100L)).thenReturn(Optional.of(setting));
+        when(storageService.upload(any(), any())).thenThrow(new RuntimeException("upload failed"));
+
+        assertThatExceptionOfType(RuntimeException.class)
+                .isThrownBy(() -> missionPerformanceService.verifyAndSaveMission(100L, 22L, image))
+                .withMessageContaining("upload failed");
+
+        verify(performanceRepository, never()).save(any());
+        verifyNoInteractions(aiService, timePolicyRepository, notificationService);
+    }
+
+    @Test
     void verifyAndSaveMissionRejectsAlreadyAcceptedMission() {
         Parent parent = parent();
         Children child = child(parent);

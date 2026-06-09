@@ -171,6 +171,130 @@ class MissionPerformanceServiceTest {
     }
 
     @Test
+    void verifyAndSaveMissionNotifiesChildWhenAiApprovesMission() throws Exception {
+        Parent parent = parent();
+        Children child = child(parent);
+        Mission mission = mission(parent, child);
+        MissionSetting setting = setting(mission, VerificationType.AI, 30);
+        TimePolicy timePolicy = timePolicy(parent, child, 600, 5);
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "proof.jpg",
+                "image/jpeg",
+                new byte[]{1}
+        );
+
+        when(missionRepository.findById(100L)).thenReturn(Optional.of(mission));
+        when(childrenRepository.findById(22L)).thenReturn(Optional.of(child));
+        when(performanceRepository.findTopByMissionIdOrderByIdDesc(100L))
+                .thenReturn(Optional.empty());
+        when(storageService.upload(any(), any())).thenReturn("mission/proof.jpg");
+        when(missionSettingRepository.findByMissionId(100L)).thenReturn(Optional.of(setting));
+        when(aiService.verifyMissionImage(any(), eq(MissionCategory.STUDY), eq("설명")))
+                .thenReturn(new AiVerificationResponse(
+                        true,
+                        "기준을 충족했습니다.",
+                        MissionStatus.ACCEPTED,
+                        null
+                ));
+        when(timePolicyRepository.findByChildIdAndYearMonth(22L, YearMonth.now().toString()))
+                .thenReturn(Optional.of(timePolicy));
+        when(performanceRepository.save(any(MissionPerformance.class))).thenAnswer(invocation -> {
+            MissionPerformance saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 201L);
+            return saved;
+        });
+
+        AiVerificationResponse response = missionPerformanceService.verifyAndSaveMission(
+                100L,
+                22L,
+                image
+        );
+
+        assertThat(response.isAccepted()).isTrue();
+        assertThat(response.status()).isEqualTo(MissionStatus.ACCEPTED);
+        assertThat(response.performanceId()).isEqualTo(201L);
+        assertThat(timePolicy.getAccumulatedRewardTime()).isEqualTo(35);
+        verify(notificationService).createNotification(
+                eq(11L),
+                eq(MemberRole.PARENT),
+                eq("AI 미션 인증 완료"),
+                eq("하늘님의 미션이 AI 인증되었습니다."),
+                eq(NotificationType.MISSION_APPROVED),
+                eq(22L),
+                eq(100L),
+                eq(201L),
+                eq("/today-mission?childrenId=22")
+        );
+        verify(notificationService).createNotification(
+                eq(22L),
+                eq(MemberRole.CHILDREN),
+                eq("미션 완료"),
+                eq("AI가 미션 수행을 확인했습니다."),
+                eq(NotificationType.MISSION_APPROVED),
+                eq(22L),
+                eq(100L),
+                eq(201L),
+                eq("/child-home/mission/100")
+        );
+    }
+
+    @Test
+    void verifyAndSaveMissionNotifiesChildWhenAiRejectsMission() throws Exception {
+        Parent parent = parent();
+        Children child = child(parent);
+        Mission mission = mission(parent, child);
+        MissionSetting setting = setting(mission, VerificationType.AI, 30);
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "proof.jpg",
+                "image/jpeg",
+                new byte[]{1}
+        );
+
+        when(missionRepository.findById(100L)).thenReturn(Optional.of(mission));
+        when(childrenRepository.findById(22L)).thenReturn(Optional.of(child));
+        when(performanceRepository.findTopByMissionIdOrderByIdDesc(100L))
+                .thenReturn(Optional.empty());
+        when(storageService.upload(any(), any())).thenReturn("mission/proof.jpg");
+        when(missionSettingRepository.findByMissionId(100L)).thenReturn(Optional.of(setting));
+        when(aiService.verifyMissionImage(any(), eq(MissionCategory.STUDY), eq("설명")))
+                .thenReturn(new AiVerificationResponse(
+                        false,
+                        "사진이 기준을 충족하지 못했습니다.",
+                        MissionStatus.REJECTED,
+                        null
+                ));
+        when(performanceRepository.save(any(MissionPerformance.class))).thenAnswer(invocation -> {
+            MissionPerformance saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 201L);
+            return saved;
+        });
+
+        AiVerificationResponse response = missionPerformanceService.verifyAndSaveMission(
+                100L,
+                22L,
+                image
+        );
+
+        assertThat(response.isAccepted()).isFalse();
+        assertThat(response.status()).isEqualTo(MissionStatus.REJECTED);
+        assertThat(response.performanceId()).isEqualTo(201L);
+        verifyNoInteractions(timePolicyRepository);
+        verify(notificationService).createNotification(
+                eq(22L),
+                eq(MemberRole.CHILDREN),
+                eq("미션 반려"),
+                eq("AI가 미션 수행을 반려했습니다."),
+                eq(NotificationType.MISSION_REJECTED),
+                eq(22L),
+                eq(100L),
+                eq(201L),
+                eq("/child-home/mission/100")
+        );
+    }
+
+    @Test
     void verifyAndSaveMissionRejectsAlreadyAcceptedMission() {
         Parent parent = parent();
         Children child = child(parent);

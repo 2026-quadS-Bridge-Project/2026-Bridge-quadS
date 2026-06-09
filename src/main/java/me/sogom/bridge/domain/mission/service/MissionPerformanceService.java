@@ -214,6 +214,30 @@ public class MissionPerformanceService {
                         performance.getId(),
                         "/today-mission?childrenId=" + child.getId()
                 );
+
+                notificationService.createNotification(
+                        child.getId(),
+                        MemberRole.CHILDREN,
+                        "미션 완료",
+                        "AI가 미션 수행을 확인했습니다.",
+                        NotificationType.MISSION_APPROVED,
+                        child.getId(),
+                        mission.getId(),
+                        performance.getId(),
+                        "/child-home/mission/" + mission.getId()
+                );
+            } else {
+                notificationService.createNotification(
+                        child.getId(),
+                        MemberRole.CHILDREN,
+                        "미션 반려",
+                        "AI가 미션 수행을 반려했습니다.",
+                        NotificationType.MISSION_REJECTED,
+                        child.getId(),
+                        mission.getId(),
+                        performance.getId(),
+                        "/child-home/mission/" + mission.getId()
+                );
             }
 
         } catch (Exception e) {

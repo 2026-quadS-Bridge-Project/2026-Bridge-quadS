@@ -29,7 +29,7 @@ class ParentControllerTest {
 
         assertThatThrownBy(() -> parentController.registerChild(
                 childPrincipal,
-                new MemberReqDTO.RegisterChildRequest("하늘", "2016-01-01", "CHILD-CODE", null)
+                new MemberReqDTO.RegisterChildRequest("하늘", "2016", "CHILD-CODE", null)
         ))
                 .isInstanceOf(ProjectException.class)
                 .satisfies(exception -> assertThat(((ProjectException) exception).getErrorCode())

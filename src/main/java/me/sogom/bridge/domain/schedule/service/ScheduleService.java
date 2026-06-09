@@ -31,6 +31,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -87,13 +88,24 @@ public class ScheduleService {
         Set<Integer> budgetWeeks = budgets.stream()
                 .map(WeeklyBudget::getWeekNumber)
                 .collect(Collectors.toSet());
-        Set<Integer> templateWeeks = weeklyRepository.findAllByChildIdAndYearMonth(childId, yearMonth).stream()
-                .filter(template -> template.getBaseMinutes() > 0)
-                .map(WeeklyTimeDistribution::getWeekNumber)
-                .collect(Collectors.toSet());
+        Map<Integer, Integer> templateMinutesByWeek = weeklyRepository.findAllByChildIdAndYearMonth(childId, yearMonth).stream()
+                .collect(Collectors.groupingBy(
+                        WeeklyTimeDistribution::getWeekNumber,
+                        Collectors.summingInt(WeeklyTimeDistribution::getBaseMinutes)
+                ));
 
         Set<Integer> requiredWeeks = Set.of(1, 2, 3, 4);
-        if (!budgetWeeks.containsAll(requiredWeeks) || !templateWeeks.containsAll(requiredWeeks)) {
+        if (!budgetWeeks.containsAll(requiredWeeks) || !templateMinutesByWeek.keySet().containsAll(requiredWeeks)) {
+            return false;
+        }
+
+        boolean weeklyTemplatesMatchBudgets = budgets.stream()
+                .filter(budget -> requiredWeeks.contains(budget.getWeekNumber()))
+                .allMatch(budget ->
+                        templateMinutesByWeek.getOrDefault(budget.getWeekNumber(), 0)
+                                == budget.getAllocatedMinutes()
+                );
+        if (!weeklyTemplatesMatchBudgets) {
             return false;
         }
 

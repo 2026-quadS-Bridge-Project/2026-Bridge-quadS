@@ -357,6 +357,54 @@ class ScheduleServiceTest {
     }
 
     @Test
+    void completeTimePlanRequiresWeeklyTemplateTotalsToMatchBudgets() {
+        Parent parent = Parent.builder()
+                .id(11L)
+                .name("parent")
+                .email("parent@test.com")
+                .hash("hash")
+                .build();
+        Children child = Children.builder()
+                .id(22L)
+                .name("하늘")
+                .email("child@test.com")
+                .hash("hash")
+                .parent(parent)
+                .build();
+
+        when(weeklyBudgetRepository.findAllByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(List.of(
+                        weeklyBudget(child, 1, 60),
+                        weeklyBudget(child, 2, 60),
+                        weeklyBudget(child, 3, 60),
+                        weeklyBudget(child, 4, 60)
+                ));
+        when(weeklyRepository.findAllByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(List.of(
+                        weeklyTemplate(child, 1, DayOfWeek.MONDAY, 60),
+                        weeklyTemplate(child, 2, DayOfWeek.MONDAY, 60),
+                        weeklyTemplate(child, 3, DayOfWeek.MONDAY, 60),
+                        weeklyTemplate(child, 4, DayOfWeek.MONDAY, 30)
+                ));
+        assertThatThrownBy(() -> scheduleService.completeTimePlan(22L, "2026-06"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("시간 계획");
+
+        verify(childrenRepository, never()).findById(22L);
+        verify(notificationService, never()).createNotification(
+                anyLong(),
+                eq(MemberRole.PARENT),
+                eq("시간 계획 완료"),
+                contains("하늘"),
+                eq(NotificationType.GENERAL),
+                eq(22L),
+                isNull(),
+                isNull(),
+                eq("/today-time?childrenId=22")
+        );
+    }
+
+    @Test
     void completeTimePlanRequiresSubmittedPlan() {
         when(weeklyBudgetRepository.findAllByChildIdAndYearMonth(22L, "2026-06"))
                 .thenReturn(List.of());

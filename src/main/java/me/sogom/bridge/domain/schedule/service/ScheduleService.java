@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
@@ -101,6 +102,19 @@ public class ScheduleService {
                         .mapToInt(WeeklyBudget::getAllocatedMinutes)
                         .sum() == policy.getBaseTime())
                 .orElse(false);
+    }
+
+    @Transactional
+    public void clearChildPlan(Long childId, String yearMonth) {
+        weeklyBudgetRepository.deleteAll(weeklyBudgetRepository.findAllByChildIdAndYearMonth(childId, yearMonth));
+        weeklyRepository.deleteAll(weeklyRepository.findAllByChildIdAndYearMonth(childId, yearMonth));
+
+        YearMonth targetMonth = YearMonth.parse(yearMonth);
+        dailyRepository.deleteAll(dailyRepository.findAllByChildIdAndTargetDateBetween(
+                childId,
+                targetMonth.atDay(1),
+                targetMonth.atEndOfMonth()
+        ));
     }
 
     @Transactional

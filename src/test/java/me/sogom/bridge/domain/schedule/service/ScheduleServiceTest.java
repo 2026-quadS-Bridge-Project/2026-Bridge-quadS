@@ -621,6 +621,44 @@ class ScheduleServiceTest {
     }
 
     @Test
+    void clearChildPlanDeletesMonthlyBudgetsTemplatesAndDailyAllocations() {
+        Children child = Children.builder()
+                .id(22L)
+                .name("하늘")
+                .email("child@test.com")
+                .hash("hash")
+                .build();
+        List<WeeklyBudget> oldBudgets = List.of(weeklyBudget(child, 1, 60));
+        List<WeeklyTimeDistribution> oldTemplates = List.of(
+                weeklyTemplate(child, 1, DayOfWeek.MONDAY, 60)
+        );
+        List<DailyTimeAllocation> oldAllocations = List.of(
+                DailyTimeAllocation.builder()
+                        .child(child)
+                        .targetDate(LocalDate.of(2026, 6, 9))
+                        .baseMinutes(60)
+                        .extendedMinutes(15)
+                        .build()
+        );
+
+        when(weeklyBudgetRepository.findAllByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(oldBudgets);
+        when(weeklyRepository.findAllByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(oldTemplates);
+        when(dailyRepository.findAllByChildIdAndTargetDateBetween(
+                22L,
+                LocalDate.of(2026, 6, 1),
+                LocalDate.of(2026, 6, 30)
+        )).thenReturn(oldAllocations);
+
+        scheduleService.clearChildPlan(22L, "2026-06");
+
+        verify(weeklyBudgetRepository).deleteAll(oldBudgets);
+        verify(weeklyRepository).deleteAll(oldTemplates);
+        verify(dailyRepository).deleteAll(oldAllocations);
+    }
+
+    @Test
     void updateWeeklyTemplateRejectsWhenWeekBudgetExceeded() {
         Children child = Children.builder()
                 .id(22L)

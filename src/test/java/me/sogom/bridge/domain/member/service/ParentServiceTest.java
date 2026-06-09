@@ -79,6 +79,7 @@ class ParentServiceTest {
         assertThat(savedPolicy.getYearMonth()).isEqualTo(YEAR_MONTH);
         assertThat(savedPolicy.getBaseTime()).isEqualTo(600);
         assertThat(savedPolicy.getAccumulatedRewardTime()).isZero();
+        verify(scheduleService, never()).clearChildPlan(any(), any());
         verify(fcmService).sendSilentPush(2L, MemberRole.CHILDREN, "TIME_POLICY_UPDATED");
         verify(notificationService).createNotification(
                 eq(2L),
@@ -115,6 +116,33 @@ class ParentServiceTest {
         assertThat(existingPolicy.getBaseTime()).isEqualTo(600);
         assertThat(existingPolicy.getAccumulatedRewardTime()).isEqualTo(45);
         verify(timePolicyRepository, never()).save(any(TimePolicy.class));
+        verify(scheduleService).clearChildPlan(2L, YEAR_MONTH);
+        verify(fcmService).sendSilentPush(2L, MemberRole.CHILDREN, "TIME_POLICY_UPDATED");
+    }
+
+    @Test
+    void setTimePolicyKeepsChildPlanWhenExistingBaseTimeIsUnchanged() {
+        Parent parent = stubParentChild();
+        Children child = parent.getChildren().get(0);
+        TimePolicy existingPolicy = TimePolicy.builder()
+                .parent(parent)
+                .child(child)
+                .yearMonth(YEAR_MONTH)
+                .baseTime(600)
+                .accumulatedRewardTime(45)
+                .build();
+        when(timePolicyRepository.findByChildIdAndYearMonth(2L, YEAR_MONTH))
+                .thenReturn(Optional.of(existingPolicy));
+
+        parentService.setTimePolicy(
+                1L,
+                new PolicyReqDTO.SetTimePolicyRequest(2L, YEAR_MONTH, 600)
+        );
+
+        assertThat(existingPolicy.getBaseTime()).isEqualTo(600);
+        assertThat(existingPolicy.getAccumulatedRewardTime()).isEqualTo(45);
+        verify(timePolicyRepository, never()).save(any(TimePolicy.class));
+        verify(scheduleService, never()).clearChildPlan(any(), any());
         verify(fcmService).sendSilentPush(2L, MemberRole.CHILDREN, "TIME_POLICY_UPDATED");
     }
 

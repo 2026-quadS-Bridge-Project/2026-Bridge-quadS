@@ -114,24 +114,26 @@ public class ParentService {
         // 자녀가 해당 부모와 연결되어 있는지 확인
         validateParentChild(parentId, child);
 
-        timePolicyRepository.findByChildIdAndYearMonth(request.childId(), request.yearMonth())
-                .ifPresentOrElse(
-
-                        // 이미 존재하는 경우 기본 시간 수정
-                        policy -> policy.updateBaseTime(request.baseTime()),
-
-                        // 존재하지 않는 경우 새 정책 생성
-                        () -> {
-                            TimePolicy newPolicy = TimePolicy.builder()
-                                    .parent(parent)
-                                    .child(child)
-                                    .yearMonth(request.yearMonth())
-                                    .baseTime(request.baseTime())
-                                    .accumulatedRewardTime(0)
-                                    .build();
-                            timePolicyRepository.save(newPolicy);
-                        }
-                );
+        Optional<TimePolicy> existingPolicy = timePolicyRepository.findByChildIdAndYearMonth(
+                request.childId(),
+                request.yearMonth()
+        );
+        if (existingPolicy.isPresent()) {
+            TimePolicy policy = existingPolicy.get();
+            if (policy.getBaseTime() != request.baseTime()) {
+                policy.updateBaseTime(request.baseTime());
+                scheduleService.clearChildPlan(request.childId(), request.yearMonth());
+            }
+        } else {
+            TimePolicy newPolicy = TimePolicy.builder()
+                    .parent(parent)
+                    .child(child)
+                    .yearMonth(request.yearMonth())
+                    .baseTime(request.baseTime())
+                    .accumulatedRewardTime(0)
+                    .build();
+            timePolicyRepository.save(newPolicy);
+        }
 
         // 자녀 앱 정책 갱신 Silent Push 전송
         fcmService.sendSilentPush(

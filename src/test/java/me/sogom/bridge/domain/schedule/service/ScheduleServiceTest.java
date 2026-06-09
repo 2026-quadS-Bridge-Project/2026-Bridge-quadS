@@ -538,6 +538,37 @@ class ScheduleServiceTest {
         verify(timePolicyRepository, never()).findByChildIdAndYearMonth(anyLong(), anyString());
     }
 
+    @Test
+    void settleDailyTimeRejectsActualUsedAboveAllocatedTime() {
+        LocalDate targetDate = LocalDate.of(2026, 6, 9);
+        DailyTimeAllocation allocation = DailyTimeAllocation.builder()
+                .targetDate(targetDate)
+                .baseMinutes(60)
+                .extendedMinutes(10)
+                .build();
+
+        when(dailyRepository.findByChildIdAndTargetDate(22L, targetDate))
+                .thenReturn(Optional.of(allocation));
+
+        assertThatThrownBy(() -> scheduleService.settleDailyTime(22L, targetDate, 71))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("초과");
+
+        assertThat(allocation.getBaseMinutes()).isEqualTo(60);
+        assertThat(allocation.getExtendedMinutes()).isEqualTo(10);
+    }
+
+    @Test
+    void settleDailyTimeRejectsNegativeActualUsed() {
+        LocalDate targetDate = LocalDate.of(2026, 6, 9);
+
+        assertThatThrownBy(() -> scheduleService.settleDailyTime(22L, targetDate, -1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("음수");
+
+        verify(dailyRepository, never()).findByChildIdAndTargetDate(anyLong(), any());
+    }
+
     private WeeklyBudgetRequest weeklyBudgetRequest(int weekNumber, int allocatedMinutes) {
         WeeklyBudgetRequest request = new WeeklyBudgetRequest();
         ReflectionTestUtils.setField(request, "weekNumber", weekNumber);

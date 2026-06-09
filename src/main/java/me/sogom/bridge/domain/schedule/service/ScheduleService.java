@@ -239,6 +239,9 @@ public class ScheduleService {
      */
     @Transactional
     public DailyTimeAllocation settleDailyTime(Long childId, LocalDate targetDate, int actualUsedMinutes) {
+        if (actualUsedMinutes < 0) {
+            throw new IllegalArgumentException("실제 사용 시간은 음수일 수 없습니다.");
+        }
 
         // 1. 오늘의 스케줄 배정 데이터 가져오기
         DailyTimeAllocation allocation = dailyRepository.findByChildIdAndTargetDate(childId, targetDate)

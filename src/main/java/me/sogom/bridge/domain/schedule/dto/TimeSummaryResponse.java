@@ -10,6 +10,7 @@ public class TimeSummaryResponse {
     private boolean childPlanExists;
     private String todayScheduleStatus;
     private String yearMonth;
+    private int basePolicyMinutes;
     private DailyScheduleResponse todaySchedule;
     private int rewardPoolMinutes;
 }

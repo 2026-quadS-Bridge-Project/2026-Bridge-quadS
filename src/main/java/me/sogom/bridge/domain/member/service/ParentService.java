@@ -170,11 +170,13 @@ public class ParentService {
                     .childPlanExists(false)
                     .todayScheduleStatus("noParentPolicy")
                     .yearMonth(yearMonth)
+                    .basePolicyMinutes(0)
                     .todaySchedule(null)
                     .rewardPoolMinutes(0)
                     .build();
         }
 
+        TimePolicy activePolicy = policy.get();
         boolean childPlanExists = scheduleService.hasChildPlan(childId, yearMonth);
         if (!childPlanExists) {
             return TimeSummaryResponse.builder()
@@ -182,8 +184,9 @@ public class ParentService {
                     .childPlanExists(false)
                     .todayScheduleStatus("waitingChildPlan")
                     .yearMonth(yearMonth)
+                    .basePolicyMinutes(activePolicy.getBaseTime())
                     .todaySchedule(null)
-                    .rewardPoolMinutes(policy.get().getAccumulatedRewardTime())
+                    .rewardPoolMinutes(activePolicy.getAccumulatedRewardTime())
                     .build();
         }
 
@@ -193,8 +196,9 @@ public class ParentService {
                 .childPlanExists(true)
                 .todayScheduleStatus(dailySchedule.isPresent() ? "available" : "templateMissing")
                 .yearMonth(yearMonth)
+                .basePolicyMinutes(activePolicy.getBaseTime())
                 .todaySchedule(dailySchedule.orElse(null))
-                .rewardPoolMinutes(policy.get().getAccumulatedRewardTime())
+                .rewardPoolMinutes(activePolicy.getAccumulatedRewardTime())
                 .build();
     }
 

@@ -272,8 +272,9 @@ public class ScheduleService {
             throw new IllegalArgumentException("주차별 분배 시간의 합이 한 달 총량을 초과할 수 없습니다.");
         }
 
-// 4. 기존 데이터가 있다면 삭제 후 새로 저장 (또는 update 처리)
+        // 기존 데이터가 있다면 삭제 후 새로 저장한다. 템플릿도 함께 비워야 재시도/재설정 시 이전 요일이 섞이지 않는다.
         weeklyBudgetRepository.deleteAll(weeklyBudgetRepository.findAllByChildIdAndYearMonth(childId, yearMonth));
+        weeklyRepository.deleteAll(weeklyRepository.findAllByChildIdAndYearMonth(childId, yearMonth));
 
         Children child = childrenRepository.findById(childId).orElseThrow();
 

@@ -288,6 +288,57 @@ class ScheduleServiceTest {
     }
 
     @Test
+    void createWeeklyBudgetsClearsExistingBudgetsAndTemplatesBeforeSaving() {
+        Parent parent = Parent.builder()
+                .id(11L)
+                .name("parent")
+                .email("parent@test.com")
+                .hash("hash")
+                .build();
+        Children child = Children.builder()
+                .id(22L)
+                .name("하늘")
+                .email("child@test.com")
+                .hash("hash")
+                .parent(parent)
+                .build();
+        TimePolicy policy = TimePolicy.builder()
+                .parent(parent)
+                .child(child)
+                .yearMonth("2026-06")
+                .baseTime(240)
+                .accumulatedRewardTime(0)
+                .build();
+        List<WeeklyBudget> oldBudgets = List.of(weeklyBudget(child, 1, 60));
+        List<WeeklyTimeDistribution> oldTemplates = List.of(
+                weeklyTemplate(child, 1, DayOfWeek.MONDAY, 60)
+        );
+
+        when(timePolicyRepository.findByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(Optional.of(policy));
+        when(weeklyBudgetRepository.findAllByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(oldBudgets);
+        when(weeklyRepository.findAllByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(oldTemplates);
+        when(childrenRepository.findById(22L)).thenReturn(Optional.of(child));
+
+        scheduleService.createWeeklyBudgets(
+                22L,
+                "2026-06",
+                List.of(
+                        weeklyBudgetRequest(1, 60),
+                        weeklyBudgetRequest(2, 60),
+                        weeklyBudgetRequest(3, 60),
+                        weeklyBudgetRequest(4, 60)
+                )
+        );
+
+        verify(weeklyBudgetRepository).deleteAll(oldBudgets);
+        verify(weeklyRepository).deleteAll(oldTemplates);
+        verify(weeklyBudgetRepository).saveAll(any());
+    }
+
+    @Test
     void updateWeeklyTemplateRejectsWhenWeekBudgetExceeded() {
         Children child = Children.builder()
                 .id(22L)

@@ -22,7 +22,15 @@ public class NotificationReqDTO {
             String content,
 
             @NotNull
-            NotificationType notificationType
+            NotificationType notificationType,
+
+            Long childId,
+
+            Long missionId,
+
+            Long performanceId,
+
+            String targetRoute
 
     ) {
     }

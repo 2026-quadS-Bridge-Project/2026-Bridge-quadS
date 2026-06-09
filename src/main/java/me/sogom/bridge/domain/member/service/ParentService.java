@@ -145,7 +145,11 @@ public class ParentService {
                 MemberRole.CHILDREN,
                 "시간 설정 완료",
                 "부모님이 이번 달 사용 시간을 설정했습니다.",
-                NotificationType.GENERAL
+                NotificationType.GENERAL,
+                child.getId(),
+                null,
+                null,
+                "/child-home/time-setup"
         );
     }
 

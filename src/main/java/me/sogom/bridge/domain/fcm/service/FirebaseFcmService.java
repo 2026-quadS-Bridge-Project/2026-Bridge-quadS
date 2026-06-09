@@ -55,13 +55,20 @@ public class FirebaseFcmService implements FcmService {
             if (token == null || token.isBlank()) {
                 return;
             }
-            Message firebaseMessage = Message.builder()
+            Message.Builder firebaseMessageBuilder = Message.builder()
                     .setToken(token)
                     .putData("title", message.title())
                     .putData("body", message.body())
                     .putData("type", message.type())
-                    .putData("targetId", String.valueOf(message.targetId()))
-                    .build();
+                    .putData("targetId", String.valueOf(message.targetId()));
+            putDataIfPresent(firebaseMessageBuilder, "notificationId", message.targetId());
+            putDataIfPresent(firebaseMessageBuilder, "childId", message.childId());
+            putDataIfPresent(firebaseMessageBuilder, "childrenId", message.childId());
+            putDataIfPresent(firebaseMessageBuilder, "missionId", message.missionId());
+            putDataIfPresent(firebaseMessageBuilder, "performanceId", message.performanceId());
+            putDataIfPresent(firebaseMessageBuilder, "deeplink", message.deeplink());
+            putDataIfPresent(firebaseMessageBuilder, "targetRoute", message.deeplink());
+            Message firebaseMessage = firebaseMessageBuilder.build();
             FirebaseMessaging.getInstance().send(firebaseMessage);
             log.info("Firebase Push 전송 완료");
         } catch (Exception e) {
@@ -111,5 +118,11 @@ public class FirebaseFcmService implements FcmService {
         }
 
         return null;
+    }
+
+    private void putDataIfPresent(Message.Builder builder, String key, Object value) {
+        if (value != null) {
+            builder.putData(key, value.toString());
+        }
     }
 }

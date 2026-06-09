@@ -11,7 +11,15 @@ public record FcmMessageDTO(
 
         String type,
 
-        Long targetId
+        Long targetId,
+
+        Long childId,
+
+        Long missionId,
+
+        Long performanceId,
+
+        String deeplink
 
 ) {
 }

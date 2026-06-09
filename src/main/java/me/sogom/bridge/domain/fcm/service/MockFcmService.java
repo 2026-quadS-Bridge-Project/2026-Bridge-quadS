@@ -38,6 +38,10 @@ public class MockFcmService implements FcmService {
         log.info("Body : {}", message.body());
         log.info("Type : {}", message.type());
         log.info("TargetId : {}", message.targetId());
+        log.info("ChildId : {}", message.childId());
+        log.info("MissionId : {}", message.missionId());
+        log.info("PerformanceId : {}", message.performanceId());
+        log.info("Deeplink : {}", message.deeplink());
     }
 
     // Silent Push Mock 전송

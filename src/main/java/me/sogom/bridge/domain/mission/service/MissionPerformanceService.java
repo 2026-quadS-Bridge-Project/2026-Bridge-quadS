@@ -107,7 +107,11 @@ public class MissionPerformanceService {
                     MemberRole.PARENT,
                     "미션 확인 요청",
                     child.getName() + "님이 미션 확인을 요청했습니다.",
-                    NotificationType.GENERAL
+                    NotificationType.MISSION_REQUESTED,
+                    child.getId(),
+                    mission.getId(),
+                    performance.getId(),
+                    "/today-mission?childrenId=" + child.getId()
             );
 
             return new AiVerificationResponse(
@@ -149,7 +153,11 @@ public class MissionPerformanceService {
                     MemberRole.PARENT,
                     "미션 완료",
                     child.getName() + "님이 미션을 완료했습니다.",
-                    NotificationType.GENERAL
+                    NotificationType.MISSION_APPROVED,
+                    child.getId(),
+                    mission.getId(),
+                    performance.getId(),
+                    "/today-mission?childrenId=" + child.getId()
             );
 
             return new AiVerificationResponse(
@@ -196,7 +204,11 @@ public class MissionPerformanceService {
                         MemberRole.PARENT,
                         "AI 미션 인증 완료",
                         child.getName() + "님의 미션이 AI 인증되었습니다.",
-                        NotificationType.GENERAL
+                        NotificationType.MISSION_APPROVED,
+                        child.getId(),
+                        mission.getId(),
+                        performance.getId(),
+                        "/today-mission?childrenId=" + child.getId()
                 );
             }
 
@@ -302,7 +314,11 @@ public class MissionPerformanceService {
                 MemberRole.CHILDREN,
                 "미션 승인 완료",
                 "부모님이 미션을 승인했습니다.",
-                NotificationType.MISSION_APPROVED
+                NotificationType.MISSION_APPROVED,
+                performance.getChild().getId(),
+                mission.getId(),
+                performance.getId(),
+                "/child-home/mission/" + mission.getId()
         );
     }
 
@@ -337,7 +353,11 @@ public class MissionPerformanceService {
                 MemberRole.CHILDREN,
                 "미션 거절",
                 "부모님이 미션을 거절했습니다.",
-                NotificationType.MISSION_REJECTED
+                NotificationType.MISSION_REJECTED,
+                performance.getChild().getId(),
+                mission.getId(),
+                performance.getId(),
+                "/child-home/mission/" + mission.getId()
         );
     }
 }

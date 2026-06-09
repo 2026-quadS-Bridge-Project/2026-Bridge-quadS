@@ -74,7 +74,11 @@ public class MissionService {
                 MemberRole.CHILDREN,
                 "새 미션이 생성되었습니다.",
                 mission.getTitle(),
-                NotificationType.MISSION_CREATED
+                NotificationType.MISSION_CREATED,
+                child.getId(),
+                mission.getId(),
+                null,
+                "/child-home/mission/" + mission.getId()
         );
 
         return MissionResDTO.MissionResponse.of(mission, setting);

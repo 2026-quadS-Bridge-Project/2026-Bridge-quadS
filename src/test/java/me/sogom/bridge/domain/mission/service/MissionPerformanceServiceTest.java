@@ -599,6 +599,40 @@ class MissionPerformanceServiceTest {
         verify(performanceRepository, never()).save(any());
     }
 
+    @Test
+    void getMissionPerformanceRejectsParentFromAnotherChild() {
+        Parent parent = parent();
+        Children child = child(parent);
+        Mission mission = mission(parent, child);
+
+        when(missionRepository.findById(100L)).thenReturn(Optional.of(mission));
+
+        assertThatExceptionOfType(MissionException.class)
+                .isThrownBy(() -> missionPerformanceService.getMissionPerformance(100L, 99L))
+                .satisfies(exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(MissionErrorCode.UNAUTHORIZED_ACCESS));
+
+        verifyNoInteractions(photoUrlResolver);
+        verify(performanceRepository, never()).findTopByMissionIdOrderByIdDesc(any());
+    }
+
+    @Test
+    void getChildMissionPerformanceRejectsDifferentChild() {
+        Parent parent = parent();
+        Children child = child(parent);
+        Mission mission = mission(parent, child);
+
+        when(missionRepository.findById(100L)).thenReturn(Optional.of(mission));
+
+        assertThatExceptionOfType(MissionException.class)
+                .isThrownBy(() -> missionPerformanceService.getChildMissionPerformance(100L, 99L))
+                .satisfies(exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(MissionErrorCode.UNAUTHORIZED_ACCESS));
+
+        verifyNoInteractions(photoUrlResolver);
+        verify(performanceRepository, never()).findTopByMissionIdOrderByIdDesc(any());
+    }
+
     private Parent parent() {
         return Parent.builder()
                 .id(11L)

@@ -3,6 +3,7 @@ package me.sogom.bridge.domain.mission.service;
 import me.sogom.bridge.domain.member.entity.Children;
 import me.sogom.bridge.domain.member.entity.Parent;
 import me.sogom.bridge.domain.member.repository.ChildrenRepository;
+import me.sogom.bridge.domain.mission.dto.AiVerificationResponse;
 import me.sogom.bridge.domain.mission.entity.Mission;
 import me.sogom.bridge.domain.mission.entity.MissionCategory;
 import me.sogom.bridge.domain.mission.entity.MissionPerformance;
@@ -24,6 +25,8 @@ import me.sogom.bridge.global.storage.PhotoUrlResolver;
 import me.sogom.bridge.global.storage.StorageService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -65,6 +68,54 @@ class MissionPerformanceServiceTest {
 
     @InjectMocks
     private MissionPerformanceService missionPerformanceService;
+
+    @Test
+    void verifyAndSaveMissionReturnsPendingStatusForParentVerification() throws Exception {
+        Parent parent = parent();
+        Children child = child(parent);
+        Mission mission = mission(parent, child);
+        MissionSetting setting = setting(mission, VerificationType.PARENT, 30);
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "proof.jpg",
+                "image/jpeg",
+                new byte[]{1}
+        );
+
+        when(missionRepository.findById(100L)).thenReturn(Optional.of(mission));
+        when(childrenRepository.findById(22L)).thenReturn(Optional.of(child));
+        when(performanceRepository.findTopByMissionIdOrderByIdDesc(100L))
+                .thenReturn(Optional.empty());
+        when(storageService.upload(any(), any())).thenReturn("mission/proof.jpg");
+        when(missionSettingRepository.findByMissionId(100L)).thenReturn(Optional.of(setting));
+        when(performanceRepository.save(any(MissionPerformance.class))).thenAnswer(invocation -> {
+            MissionPerformance saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 201L);
+            return saved;
+        });
+
+        AiVerificationResponse response = missionPerformanceService.verifyAndSaveMission(
+                100L,
+                22L,
+                image
+        );
+
+        assertThat(response.isAccepted()).isFalse();
+        assertThat(response.status()).isEqualTo(MissionStatus.PENDING);
+        assertThat(response.performanceId()).isEqualTo(201L);
+        verifyNoInteractions(aiService, timePolicyRepository);
+        verify(notificationService).createNotification(
+                eq(11L),
+                eq(MemberRole.PARENT),
+                eq("미션 확인 요청"),
+                eq("하늘님이 미션 확인을 요청했습니다."),
+                eq(NotificationType.MISSION_REQUESTED),
+                eq(22L),
+                eq(100L),
+                eq(201L),
+                eq("/today-mission?childrenId=22")
+        );
+    }
 
     @Test
     void approveMissionRewardsOnlyParentVerificationPerformance() {

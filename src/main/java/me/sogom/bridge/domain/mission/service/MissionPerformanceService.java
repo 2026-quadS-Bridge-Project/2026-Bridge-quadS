@@ -116,7 +116,9 @@ public class MissionPerformanceService {
 
             return new AiVerificationResponse(
                     false,
-                    "부모님 확인 대기중입니다."
+                    "부모님 확인 대기중입니다.",
+                    performance.getStatus(),
+                    performance.getId()
             );
         }
 
@@ -162,7 +164,9 @@ public class MissionPerformanceService {
 
             return new AiVerificationResponse(
                     true,
-                    "미션 완료로 보상 시간이 지급되었습니다."
+                    "미션 완료로 보상 시간이 지급되었습니다.",
+                    performance.getStatus(),
+                    performance.getId()
             );
         }
 
@@ -216,7 +220,12 @@ public class MissionPerformanceService {
             e.printStackTrace();
             // [AI 예외 처리] 구글 AI 서버 오류나 네트워크 장애 발생 시 Failsafe 우회
             // DB에는 2번 단계에서 넣은 PENDING 데이터가 그대로 안전하게 유지
-            aiResponse = new AiVerificationResponse(false, "AI 서버 일시 오류로 인해 부모님 확인 대기 상태로 전환되었습니다.");
+            aiResponse = new AiVerificationResponse(
+                    false,
+                    "AI 서버 일시 오류로 인해 부모님 확인 대기 상태로 전환되었습니다.",
+                    MissionStatus.PENDING,
+                    performance.getId()
+            );
             performance.updateStatusAndReason(MissionStatus.PENDING, aiResponse.reason());
         }
 
@@ -224,7 +233,12 @@ public class MissionPerformanceService {
         performanceRepository.save(performance);
 
         //프론트엔드에게 돌려줄 AI 응답 반환
-        return aiResponse;
+        return new AiVerificationResponse(
+                aiResponse.isAccepted(),
+                aiResponse.reason(),
+                performance.getStatus(),
+                performance.getId()
+        );
     }
 
     @Transactional(readOnly = true)

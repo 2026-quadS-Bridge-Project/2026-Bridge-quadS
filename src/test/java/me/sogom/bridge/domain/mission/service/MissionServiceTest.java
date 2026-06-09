@@ -6,6 +6,7 @@ import me.sogom.bridge.domain.member.repository.ChildrenRepository;
 import me.sogom.bridge.domain.member.repository.ParentRepository;
 import me.sogom.bridge.domain.mission.dto.req.MissionReqDTO;
 import me.sogom.bridge.domain.mission.dto.res.MissionResDTO;
+import me.sogom.bridge.domain.mission.dto.res.MissionSummaryResponse;
 import me.sogom.bridge.domain.mission.entity.Mission;
 import me.sogom.bridge.domain.mission.entity.MissionCategory;
 import me.sogom.bridge.domain.mission.entity.MissionSetting;
@@ -26,6 +27,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -124,6 +126,40 @@ class MissionServiceTest {
                 any(),
                 any()
         );
+    }
+
+    @Test
+    void getParentMissionSummariesReturnsOwnedChildMissions() {
+        Parent parent = parent(11L);
+        Children child = child(22L, parent);
+        List<MissionSummaryResponse> summaries = List.of(
+                new MissionSummaryResponse(100L, "방 정리", MissionCategory.CLEANING, 30)
+        );
+        when(parentRepository.findById(11L)).thenReturn(Optional.of(parent));
+        when(childrenRepository.findById(22L)).thenReturn(Optional.of(child));
+        when(missionSettingRepository.findMissionSummariesByParentIdAndChildId(11L, 22L))
+                .thenReturn(summaries);
+
+        List<MissionSummaryResponse> response = missionService.getParentMissionSummaries(11L, 22L);
+
+        assertThat(response).isEqualTo(summaries);
+        verify(missionSettingRepository).findMissionSummariesByParentIdAndChildId(11L, 22L);
+    }
+
+    @Test
+    void getParentMissionSummariesRejectsChildFromAnotherParent() {
+        Parent parent = parent(11L);
+        Children child = child(22L, parent(99L));
+        when(parentRepository.findById(11L)).thenReturn(Optional.of(parent));
+        when(childrenRepository.findById(22L)).thenReturn(Optional.of(child));
+
+        assertThatThrownBy(() -> missionService.getParentMissionSummaries(11L, 22L))
+                .isInstanceOf(MissionException.class)
+                .satisfies(exception ->
+                        assertThat(((MissionException) exception).getErrorCode())
+                                .isEqualTo(MissionErrorCode.CHILD_PARENT_MISMATCH));
+
+        verify(missionSettingRepository, never()).findMissionSummariesByParentIdAndChildId(any(), any());
     }
 
     @Test

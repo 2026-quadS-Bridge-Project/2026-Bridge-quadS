@@ -563,6 +563,42 @@ class MissionPerformanceServiceTest {
         verify(performanceRepository, never()).save(any());
     }
 
+    @Test
+    void approveMissionRejectsPerformanceOwnedByAnotherParent() {
+        Parent parent = parent();
+        Children child = child(parent);
+        Mission mission = mission(parent, child);
+        MissionPerformance performance = performance(mission, child, MissionStatus.PENDING);
+
+        when(performanceRepository.findById(200L)).thenReturn(Optional.of(performance));
+
+        assertThatExceptionOfType(MissionException.class)
+                .isThrownBy(() -> missionPerformanceService.approveMission(200L, 99L))
+                .satisfies(exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(MissionErrorCode.UNAUTHORIZED_ACCESS));
+        assertThat(performance.getStatus()).isEqualTo(MissionStatus.PENDING);
+        verifyNoInteractions(missionSettingRepository, timePolicyRepository, notificationService);
+        verify(performanceRepository, never()).save(any());
+    }
+
+    @Test
+    void rejectMissionRejectsPerformanceOwnedByAnotherParent() {
+        Parent parent = parent();
+        Children child = child(parent);
+        Mission mission = mission(parent, child);
+        MissionPerformance performance = performance(mission, child, MissionStatus.PENDING);
+
+        when(performanceRepository.findById(200L)).thenReturn(Optional.of(performance));
+
+        assertThatExceptionOfType(MissionException.class)
+                .isThrownBy(() -> missionPerformanceService.rejectMission(200L, 99L))
+                .satisfies(exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(MissionErrorCode.UNAUTHORIZED_ACCESS));
+        assertThat(performance.getStatus()).isEqualTo(MissionStatus.PENDING);
+        verifyNoInteractions(missionSettingRepository, notificationService);
+        verify(performanceRepository, never()).save(any());
+    }
+
     private Parent parent() {
         return Parent.builder()
                 .id(11L)

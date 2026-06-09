@@ -27,6 +27,7 @@ class ChildPolicyControllerTest {
     @Test
     void getChildPolicyAllowsAuthenticatedChildToReadOwnPolicy() {
         PolicyResponse policy = PolicyResponse.builder()
+                .yearMonth("2026-06")
                 .baseTime(600)
                 .accumulatedRewardTime(30)
                 .totalAvailableTime(630)
@@ -37,6 +38,7 @@ class ChildPolicyControllerTest {
         ApiResponse<PolicyResponse> response = controller.getChildPolicy(authChild(22L), 22L);
 
         assertThat(response.getData()).isSameAs(policy);
+        assertThat(response.getData().getYearMonth()).isEqualTo("2026-06");
         verify(childPolicyService).getChildPolicy(22L);
     }
 

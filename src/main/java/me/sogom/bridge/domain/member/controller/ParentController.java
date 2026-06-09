@@ -34,7 +34,7 @@ public class ParentController {
     public ApiResponse<MemberResDTO.ChildrenInfoResponse> registerChild(
             @AuthenticationPrincipal AuthMember authMember,
             @RequestBody @Valid MemberReqDTO.RegisterChildRequest request) {
-        Long parentId = authMember.getMember().getId();
+        Long parentId = authMember.asParent().getId();
         MemberResDTO.ChildrenInfoResponse response = parentService.registerChild(parentId, request);
         return ApiResponse.onSuccess(MemberSuccessCode.CHILDREN_REGISTER_SUCCESS, response);
     }
@@ -47,7 +47,7 @@ public class ParentController {
     @GetMapping("/children")
     public ApiResponse<List<MemberResDTO.ChildrenInfoResponse>> getChildrenList(
             @AuthenticationPrincipal AuthMember authMember) {
-        Long parentId = authMember.getMember().getId();
+        Long parentId = authMember.asParent().getId();
         List<MemberResDTO.ChildrenInfoResponse> childrenList = parentService.getChildrenList(parentId);
         return ApiResponse.onSuccess(MemberSuccessCode.CHILDREN_LIST_SUCCESS, childrenList);
     }
@@ -62,7 +62,7 @@ public class ParentController {
     public ApiResponse<Void> setTimePolicy(
             @AuthenticationPrincipal AuthMember authMember,
             @RequestBody @Valid PolicyReqDTO.SetTimePolicyRequest request) {
-        Long parentId = authMember.getMember().getId();
+        Long parentId = authMember.asParent().getId();
         parentService.setTimePolicy(parentId, request);
         return ApiResponse.onSuccess(MemberSuccessCode.TIME_POLICY_SET_SUCCESS, null);
     }

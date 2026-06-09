@@ -48,6 +48,24 @@ class ParentServiceTest {
     private ParentService parentService;
 
     @Test
+    void childTimeSummaryMarksNoParentPolicyWhenMonthlyPolicyIsMissing() {
+        stubParentChild();
+        when(scheduleService.yearMonthOf(TODAY)).thenReturn(YEAR_MONTH);
+        when(timePolicyRepository.findByChildIdAndYearMonth(2L, YEAR_MONTH))
+                .thenReturn(Optional.empty());
+
+        TimeSummaryResponse response = parentService.getChildTimeSummary(1L, 2L, TODAY);
+
+        assertThat(response.isParentPolicyExists()).isFalse();
+        assertThat(response.isChildPlanExists()).isFalse();
+        assertThat(response.getTodayScheduleStatus()).isEqualTo("noParentPolicy");
+        assertThat(response.getYearMonth()).isEqualTo(YEAR_MONTH);
+        assertThat(response.getBasePolicyMinutes()).isZero();
+        assertThat(response.getRewardPoolMinutes()).isZero();
+        assertThat(response.getTodaySchedule()).isNull();
+    }
+
+    @Test
     void childTimeSummaryIncludesParentBasePolicyMinutesBeforeChildPlan() {
         TimePolicy policy = stubParentChildAndPolicy();
         when(scheduleService.hasChildPlan(2L, YEAR_MONTH)).thenReturn(false);
@@ -106,6 +124,24 @@ class ParentServiceTest {
     }
 
     private TimePolicy stubParentChildAndPolicy() {
+        Parent parent = stubParentChild();
+        Children child = parent.getChildren().get(0);
+        TimePolicy policy = TimePolicy.builder()
+                .parent(parent)
+                .child(child)
+                .yearMonth(YEAR_MONTH)
+                .baseTime(600)
+                .accumulatedRewardTime(30)
+                .build();
+
+        when(scheduleService.yearMonthOf(TODAY)).thenReturn(YEAR_MONTH);
+        when(timePolicyRepository.findByChildIdAndYearMonth(2L, YEAR_MONTH))
+                .thenReturn(Optional.of(policy));
+
+        return policy;
+    }
+
+    private Parent stubParentChild() {
         Parent parent = Parent.builder()
                 .id(1L)
                 .name("parent")
@@ -119,20 +155,11 @@ class ParentServiceTest {
                 .hash("hash")
                 .parent(parent)
                 .build();
-        TimePolicy policy = TimePolicy.builder()
-                .parent(parent)
-                .child(child)
-                .yearMonth(YEAR_MONTH)
-                .baseTime(600)
-                .accumulatedRewardTime(30)
-                .build();
+        parent.getChildren().add(child);
 
         when(parentRepository.findById(1L)).thenReturn(Optional.of(parent));
         when(childrenRepository.findById(2L)).thenReturn(Optional.of(child));
-        when(scheduleService.yearMonthOf(TODAY)).thenReturn(YEAR_MONTH);
-        when(timePolicyRepository.findByChildIdAndYearMonth(2L, YEAR_MONTH))
-                .thenReturn(Optional.of(policy));
 
-        return policy;
+        return parent;
     }
 }

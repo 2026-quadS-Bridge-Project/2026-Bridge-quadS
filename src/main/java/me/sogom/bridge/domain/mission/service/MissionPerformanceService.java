@@ -232,6 +232,22 @@ public class MissionPerformanceService {
         return MissionPerformanceResDTO.MissionPerformanceResponse.of(performance, photoUrlResolver);
     }
 
+    @Transactional(readOnly = true)
+    public MissionPerformanceResDTO.MissionPerformanceResponse getChildMissionPerformance(Long missionId, Long childId) {
+
+        Mission mission = missionRepository.findById(missionId)
+                .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
+
+        if (!mission.getChild().getId().equals(childId)) {
+            throw new MissionException(MissionErrorCode.UNAUTHORIZED_ACCESS);
+        }
+
+        MissionPerformance performance = performanceRepository.findTopByMissionIdOrderByIdDesc(missionId)
+                .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
+
+        return MissionPerformanceResDTO.MissionPerformanceResponse.of(performance, photoUrlResolver);
+    }
+
     @Transactional
     public void approveMission(Long performanceId, Long parentId) {
 

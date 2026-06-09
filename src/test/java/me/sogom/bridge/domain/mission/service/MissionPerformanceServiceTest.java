@@ -295,6 +295,56 @@ class MissionPerformanceServiceTest {
     }
 
     @Test
+    void verifyAndSaveMissionRejectsAiMissionWhenAiServiceFails() throws Exception {
+        Parent parent = parent();
+        Children child = child(parent);
+        Mission mission = mission(parent, child);
+        MissionSetting setting = setting(mission, VerificationType.AI, 30);
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "proof.jpg",
+                "image/jpeg",
+                new byte[]{1}
+        );
+
+        when(missionRepository.findById(100L)).thenReturn(Optional.of(mission));
+        when(childrenRepository.findById(22L)).thenReturn(Optional.of(child));
+        when(performanceRepository.findTopByMissionIdOrderByIdDesc(100L))
+                .thenReturn(Optional.empty());
+        when(storageService.upload(any(), any())).thenReturn("mission/proof.jpg");
+        when(missionSettingRepository.findByMissionId(100L)).thenReturn(Optional.of(setting));
+        when(aiService.verifyMissionImage(any(), eq(MissionCategory.STUDY), eq("설명")))
+                .thenThrow(new RuntimeException("ai unavailable"));
+        when(performanceRepository.save(any(MissionPerformance.class))).thenAnswer(invocation -> {
+            MissionPerformance saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 201L);
+            return saved;
+        });
+
+        AiVerificationResponse response = missionPerformanceService.verifyAndSaveMission(
+                100L,
+                22L,
+                image
+        );
+
+        assertThat(response.isAccepted()).isFalse();
+        assertThat(response.status()).isEqualTo(MissionStatus.REJECTED);
+        assertThat(response.performanceId()).isEqualTo(201L);
+        verifyNoInteractions(timePolicyRepository);
+        verify(notificationService).createNotification(
+                eq(22L),
+                eq(MemberRole.CHILDREN),
+                eq("미션 반려"),
+                eq("AI 확인에 실패해 다시 수행이 필요합니다."),
+                eq(NotificationType.MISSION_REJECTED),
+                eq(22L),
+                eq(100L),
+                eq(201L),
+                eq("/child-home/mission/100")
+        );
+    }
+
+    @Test
     void verifyAndSaveMissionRejectsAlreadyAcceptedMission() {
         Parent parent = parent();
         Children child = child(parent);

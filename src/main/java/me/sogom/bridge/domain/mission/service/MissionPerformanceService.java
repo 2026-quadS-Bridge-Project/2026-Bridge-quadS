@@ -236,15 +236,27 @@ public class MissionPerformanceService {
 
         } catch (Exception e) {
             e.printStackTrace();
-            // [AI 예외 처리] 구글 AI 서버 오류나 네트워크 장애 발생 시 Failsafe 우회
-            // DB에는 2번 단계에서 넣은 PENDING 데이터가 그대로 안전하게 유지
+            // [AI 예외 처리] AI 미션은 부모 승인 API 대상이 아니므로 PENDING으로
+            // 남기면 앱에서 처리할 수 없는 대기 상태가 된다. 반려로 정리해
+            // 자녀가 다시 제출할 수 있게 한다.
             aiResponse = new AiVerificationResponse(
                     false,
-                    "AI 서버 일시 오류로 인해 부모님 확인 대기 상태로 전환되었습니다.",
-                    MissionStatus.PENDING,
+                    "AI 서버 일시 오류로 인해 다시 제출해 주세요.",
+                    MissionStatus.REJECTED,
                     performance.getId()
             );
-            performance.updateStatusAndReason(MissionStatus.PENDING, aiResponse.reason());
+            performance.updateStatusAndReason(MissionStatus.REJECTED, aiResponse.reason());
+            notificationService.createNotification(
+                    child.getId(),
+                    MemberRole.CHILDREN,
+                    "미션 반려",
+                    "AI 확인에 실패해 다시 수행이 필요합니다.",
+                    NotificationType.MISSION_REJECTED,
+                    child.getId(),
+                    mission.getId(),
+                    performance.getId(),
+                    "/child-home/mission/" + mission.getId()
+            );
         }
 
         //최종적으로 DB에 영속화 (Save)

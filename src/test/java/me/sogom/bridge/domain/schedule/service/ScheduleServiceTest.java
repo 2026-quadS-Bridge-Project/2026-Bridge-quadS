@@ -148,6 +148,85 @@ class ScheduleServiceTest {
     }
 
     @Test
+    void extendDailyTimeConsumesRewardPoolWithoutChangingMonthlyBase() {
+        Parent parent = Parent.builder()
+                .id(11L)
+                .name("parent")
+                .email("parent@test.com")
+                .hash("hash")
+                .build();
+        Children child = Children.builder()
+                .id(22L)
+                .name("하늘")
+                .email("child@test.com")
+                .hash("hash")
+                .parent(parent)
+                .build();
+        TimePolicy policy = TimePolicy.builder()
+                .parent(parent)
+                .child(child)
+                .yearMonth("2026-06")
+                .baseTime(600)
+                .accumulatedRewardTime(45)
+                .build();
+        LocalDate targetDate = LocalDate.of(2026, 6, 9);
+        DailyTimeAllocation allocation = DailyTimeAllocation.builder()
+                .child(child)
+                .targetDate(targetDate)
+                .baseMinutes(60)
+                .extendedMinutes(5)
+                .build();
+
+        when(timePolicyRepository.findByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(Optional.of(policy));
+        when(dailyRepository.findByChildIdAndTargetDate(22L, targetDate))
+                .thenReturn(Optional.of(allocation));
+
+        DailyTimeAllocation updated = scheduleService.extendDailyTime(22L, targetDate, 15);
+
+        assertThat(updated.getBaseMinutes()).isEqualTo(60);
+        assertThat(updated.getExtendedMinutes()).isEqualTo(20);
+        assertThat(policy.getBaseTime()).isEqualTo(600);
+        assertThat(policy.getAccumulatedRewardTime()).isEqualTo(30);
+    }
+
+    @Test
+    void extendDailyTimeRejectsWhenRewardPoolIsInsufficient() {
+        Parent parent = Parent.builder()
+                .id(11L)
+                .name("parent")
+                .email("parent@test.com")
+                .hash("hash")
+                .build();
+        Children child = Children.builder()
+                .id(22L)
+                .name("하늘")
+                .email("child@test.com")
+                .hash("hash")
+                .parent(parent)
+                .build();
+        TimePolicy policy = TimePolicy.builder()
+                .parent(parent)
+                .child(child)
+                .yearMonth("2026-06")
+                .baseTime(600)
+                .accumulatedRewardTime(10)
+                .build();
+        LocalDate targetDate = LocalDate.of(2026, 6, 9);
+
+        when(timePolicyRepository.findByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(Optional.of(policy));
+
+        assertThatThrownBy(() -> scheduleService.extendDailyTime(22L, targetDate, 15))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("보상 시간");
+
+        assertThat(policy.getBaseTime()).isEqualTo(600);
+        assertThat(policy.getAccumulatedRewardTime()).isEqualTo(10);
+        verify(dailyRepository, never()).findByChildIdAndTargetDate(anyLong(), any());
+    }
+
+    @Test
     void completeTimePlanNotifiesParent() {
         Parent parent = Parent.builder()
                 .id(11L)

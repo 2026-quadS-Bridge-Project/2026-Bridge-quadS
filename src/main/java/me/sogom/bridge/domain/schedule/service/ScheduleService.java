@@ -154,8 +154,8 @@ public class ScheduleService {
         TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
                 .orElseThrow(() -> new IllegalArgumentException("해당 월의 부모 정책이 설정되지 않았습니다."));
 
-        //엔티티의 차감 로직 호출 (알아서 기본시간->보상시간 순으로 깎고, 부족하면 에러를 던짐)
-        policy.deductAvailableTime(extraMinutes);
+        // 오늘 시간 연장은 미션으로 쌓인 보상 풀에서만 사용한다. 부모 월 총량은 재분배 기준이라 차감하지 않는다.
+        policy.deductRewardTime(extraMinutes);
 
         //오늘의 스케줄 데이터를 가져오기
         DailyTimeAllocation allocation = getOrCreateDailyAllocation(childId, targetDate);

@@ -98,6 +98,55 @@ class ScheduleServiceTest {
     }
 
     @Test
+    void getOrCreateDailyAllocationUsesFourthWeekTemplateForMonthEnd() {
+        Parent parent = Parent.builder()
+                .id(11L)
+                .name("parent")
+                .email("parent@test.com")
+                .hash("hash")
+                .build();
+        Children child = Children.builder()
+                .id(22L)
+                .name("하늘")
+                .email("child@test.com")
+                .hash("hash")
+                .parent(parent)
+                .build();
+        TimePolicy policy = TimePolicy.builder()
+                .parent(parent)
+                .child(child)
+                .yearMonth("2026-06")
+                .baseTime(600)
+                .accumulatedRewardTime(0)
+                .build();
+        LocalDate targetDate = LocalDate.of(2026, 6, 30);
+        WeeklyTimeDistribution template = WeeklyTimeDistribution.builder()
+                .child(child)
+                .yearMonth("2026-06")
+                .weekNumber(4)
+                .dayOfWeek(targetDate.getDayOfWeek())
+                .baseMinutes(45)
+                .build();
+
+        when(dailyRepository.findByChildIdAndTargetDate(22L, targetDate))
+                .thenReturn(Optional.empty());
+        when(weeklyRepository.findByChildIdAndDayOfWeekAndYearMonthAndWeekNumber(
+                22L, targetDate.getDayOfWeek(), "2026-06", 4
+        )).thenReturn(Optional.of(template));
+        when(timePolicyRepository.findByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(Optional.of(policy));
+        when(childrenRepository.findById(22L)).thenReturn(Optional.of(child));
+        when(dailyRepository.save(any(DailyTimeAllocation.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        DailyTimeAllocation allocation = scheduleService.getOrCreateDailyAllocation(22L, targetDate);
+
+        assertThat(allocation.getTargetDate()).isEqualTo(targetDate);
+        assertThat(allocation.getBaseMinutes()).isEqualTo(45);
+        assertThat(allocation.getExtendedMinutes()).isZero();
+    }
+
+    @Test
     void getOrCreateDailyAllocationDoesNotDeductMonthlyBasePolicy() {
         Parent parent = Parent.builder()
                 .id(11L)

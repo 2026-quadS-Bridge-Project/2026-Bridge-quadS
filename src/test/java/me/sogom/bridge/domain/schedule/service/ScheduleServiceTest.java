@@ -279,10 +279,111 @@ class ScheduleServiceTest {
         assertThatThrownBy(() -> scheduleService.createWeeklyBudgets(
                 22L,
                 "2026-06",
-                List.of(weeklyBudgetRequest(1, 60), weeklyBudgetRequest(2, 90))
+                List.of(
+                        weeklyBudgetRequest(1, 30),
+                        weeklyBudgetRequest(2, 30),
+                        weeklyBudgetRequest(3, 30),
+                        weeklyBudgetRequest(4, 31)
+                )
         ))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("한 달 총량");
+
+        verify(weeklyBudgetRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void createWeeklyBudgetsRejectsWhenMonthlyBaseTimeUnderfilled() {
+        Parent parent = Parent.builder()
+                .id(11L)
+                .name("parent")
+                .email("parent@test.com")
+                .hash("hash")
+                .build();
+        Children child = Children.builder()
+                .id(22L)
+                .name("하늘")
+                .email("child@test.com")
+                .hash("hash")
+                .parent(parent)
+                .build();
+        TimePolicy policy = TimePolicy.builder()
+                .parent(parent)
+                .child(child)
+                .yearMonth("2026-06")
+                .baseTime(120)
+                .accumulatedRewardTime(0)
+                .build();
+
+        when(timePolicyRepository.findByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(Optional.of(policy));
+
+        assertThatThrownBy(() -> scheduleService.createWeeklyBudgets(
+                22L,
+                "2026-06",
+                List.of(
+                        weeklyBudgetRequest(1, 30),
+                        weeklyBudgetRequest(2, 30),
+                        weeklyBudgetRequest(3, 30),
+                        weeklyBudgetRequest(4, 20)
+                )
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("한 달 총량");
+
+        verify(weeklyBudgetRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void createWeeklyBudgetsRequiresAllFourPositiveWeeks() {
+        Parent parent = Parent.builder()
+                .id(11L)
+                .name("parent")
+                .email("parent@test.com")
+                .hash("hash")
+                .build();
+        Children child = Children.builder()
+                .id(22L)
+                .name("하늘")
+                .email("child@test.com")
+                .hash("hash")
+                .parent(parent)
+                .build();
+        TimePolicy policy = TimePolicy.builder()
+                .parent(parent)
+                .child(child)
+                .yearMonth("2026-06")
+                .baseTime(120)
+                .accumulatedRewardTime(0)
+                .build();
+
+        when(timePolicyRepository.findByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(Optional.of(policy));
+
+        assertThatThrownBy(() -> scheduleService.createWeeklyBudgets(
+                22L,
+                "2026-06",
+                List.of(
+                        weeklyBudgetRequest(1, 30),
+                        weeklyBudgetRequest(2, 30),
+                        weeklyBudgetRequest(3, 30)
+                )
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("1~4주차");
+
+        assertThatThrownBy(() -> scheduleService.createWeeklyBudgets(
+                22L,
+                "2026-06",
+                List.of(
+                        weeklyBudgetRequest(1, 30),
+                        weeklyBudgetRequest(2, 30),
+                        weeklyBudgetRequest(3, 30),
+                        weeklyBudgetRequest(4, 0)
+                )
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("0분보다 커야");
 
         verify(weeklyBudgetRepository, never()).saveAll(any());
     }

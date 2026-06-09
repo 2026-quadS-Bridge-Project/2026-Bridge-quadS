@@ -263,14 +263,16 @@ public class ScheduleService {
         TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
                 .orElseThrow(() -> new IllegalArgumentException("정책이 없습니다."));
 
+        validateFourWeekBudgetRequests(requests);
+
 // 2. 자녀가 요청한 1~4주차 시간의 총합 계산
         int totalRequestedMinutes = requests.stream()
                 .mapToInt(WeeklyBudgetRequest::getAllocatedMinutes)
                 .sum();
 
-// 3. 한 달 총량을 초과하는지 검증
-        if (totalRequestedMinutes > policy.getBaseTime()) {
-            throw new IllegalArgumentException("주차별 분배 시간의 합이 한 달 총량을 초과할 수 없습니다.");
+// 3. 한 달 총량과 정확히 일치하는지 검증
+        if (totalRequestedMinutes != policy.getBaseTime()) {
+            throw new IllegalArgumentException("주차별 분배 시간의 합은 한 달 총량과 같아야 합니다.");
         }
 
         // 기존 데이터가 있다면 삭제 후 새로 저장한다. 템플릿도 함께 비워야 재시도/재설정 시 이전 요일이 섞이지 않는다.
@@ -289,5 +291,26 @@ public class ScheduleService {
                 .toList();
 
         weeklyBudgetRepository.saveAll(budgets);
+    }
+
+    private void validateFourWeekBudgetRequests(List<WeeklyBudgetRequest> requests) {
+        if (requests == null) {
+            throw new IllegalArgumentException("1~4주차 예산을 모두 한 번씩 분배해야 합니다.");
+        }
+
+        Set<Integer> requiredWeeks = Set.of(1, 2, 3, 4);
+        Set<Integer> requestedWeeks = requests.stream()
+                .map(WeeklyBudgetRequest::getWeekNumber)
+                .collect(Collectors.toSet());
+
+        if (requests.size() != requiredWeeks.size() || !requestedWeeks.equals(requiredWeeks)) {
+            throw new IllegalArgumentException("1~4주차 예산을 모두 한 번씩 분배해야 합니다.");
+        }
+
+        boolean hasNonPositiveBudget = requests.stream()
+                .anyMatch(request -> request.getAllocatedMinutes() <= 0);
+        if (hasNonPositiveBudget) {
+            throw new IllegalArgumentException("각 주차 예산은 0분보다 커야 합니다.");
+        }
     }
 }

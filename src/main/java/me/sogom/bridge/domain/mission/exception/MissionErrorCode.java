@@ -14,6 +14,7 @@ public enum MissionErrorCode implements BaseErrorCode {
     UNAUTHORIZED_ACCESS(HttpStatus.FORBIDDEN, "MISSION403", "해당 미션에 대한 수행 권한이 없습니다."), //권한 검증 실패 시 사용
     CHILD_PARENT_MISMATCH(HttpStatus.FORBIDDEN, "MISSION403_CHILD", "해당 자녀에게 미션을 부여할 권한이 없습니다."),
     MISSION_ALREADY_COMPLETED(HttpStatus.BAD_REQUEST, "MISSION400", "이미 완료된 미션입니다."),
+    MISSION_ALREADY_SUBMITTED(HttpStatus.BAD_REQUEST, "MISSION_ALREADY_SUBMITTED", "이미 확인 대기 중인 미션입니다."),
     INVALID_MISSION_STATE(HttpStatus.BAD_REQUEST, "INVALID_MISSION_STATE", "대기 상태인 부모 확인 미션만 승인/반려할 수 있습니다.");
     // 필요할 때마다 여기에 추가 예정
 

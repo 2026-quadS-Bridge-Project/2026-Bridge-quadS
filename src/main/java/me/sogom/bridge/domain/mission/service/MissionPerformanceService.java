@@ -57,14 +57,8 @@ public class MissionPerformanceService {
             throw new MissionException(MissionErrorCode.UNAUTHORIZED_ACCESS);
         }
 
-        //해당 미션의 가장 최근 수행 내역을 확인합니다.
-        performanceRepository.findTopByMissionIdOrderByIdDesc(missionId)
-                .ifPresent(lastPerformance -> {
-                    // 이미 부모나 AI가 승인(ACCEPTED)한 미션이라면 더 이상 진행하지 못하게 차단!
-                    if (lastPerformance.getStatus() == MissionStatus.ACCEPTED) {
-                        throw new MissionException(MissionErrorCode.MISSION_ALREADY_COMPLETED);
-                    }
-                });
+        assertMissionIsNotCompleted(missionId);
+        assertMissionIsNotPendingReview(missionId);
 
         // 2. [PENDING 먼저 저장] AI를 호출하기 전에 우선 수행 내역을 'PENDING' 상태로 DB에 저장합니다.
         MissionPerformance performance = MissionPerformance.builder()
@@ -316,6 +310,7 @@ public class MissionPerformanceService {
                 .orElseThrow(() -> new IllegalArgumentException("해당 미션의 설정 정보를 찾을 수 없습니다."));
 
         validateParentReviewable(performance, setting);
+        assertMissionHasNoAcceptedPerformance(mission.getId(), performance);
 
         performance.updateStatusAndReason(
                 MissionStatus.ACCEPTED,
@@ -401,5 +396,30 @@ public class MissionPerformanceService {
                 setting.getVerificationType() != VerificationType.PARENT) {
             throw new MissionException(MissionErrorCode.INVALID_MISSION_STATE);
         }
+    }
+
+    private void assertMissionIsNotCompleted(Long missionId) {
+        if (performanceRepository.existsByMissionIdAndStatus(missionId, MissionStatus.ACCEPTED)) {
+            throw new MissionException(MissionErrorCode.MISSION_ALREADY_COMPLETED);
+        }
+    }
+
+    private void assertMissionIsNotPendingReview(Long missionId) {
+        performanceRepository.findTopByMissionIdOrderByIdDesc(missionId)
+                .ifPresent(lastPerformance -> {
+                    if (lastPerformance.getStatus() == MissionStatus.PENDING) {
+                        throw new MissionException(MissionErrorCode.MISSION_ALREADY_SUBMITTED);
+                    }
+                });
+    }
+
+    private void assertMissionHasNoAcceptedPerformance(
+            Long missionId,
+            MissionPerformance currentPerformance
+    ) {
+        if (currentPerformance.getStatus() == MissionStatus.ACCEPTED) {
+            return;
+        }
+        assertMissionIsNotCompleted(missionId);
     }
 }

@@ -299,7 +299,32 @@ class MissionPerformanceServiceTest {
         Parent parent = parent();
         Children child = child(parent);
         Mission mission = mission(parent, child);
-        MissionPerformance accepted = performance(mission, child, MissionStatus.ACCEPTED);
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "proof.jpg",
+                "image/jpeg",
+                new byte[]{1}
+        );
+
+        when(missionRepository.findById(100L)).thenReturn(Optional.of(mission));
+        when(childrenRepository.findById(22L)).thenReturn(Optional.of(child));
+        when(performanceRepository.existsByMissionIdAndStatus(100L, MissionStatus.ACCEPTED))
+                .thenReturn(true);
+
+        assertThatExceptionOfType(MissionException.class)
+                .isThrownBy(() -> missionPerformanceService.verifyAndSaveMission(100L, 22L, image))
+                .satisfies(exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(MissionErrorCode.MISSION_ALREADY_COMPLETED));
+        verifyNoInteractions(storageService, missionSettingRepository, timePolicyRepository, notificationService);
+        verify(performanceRepository, never()).save(any());
+    }
+
+    @Test
+    void verifyAndSaveMissionRejectsAlreadyPendingMission() {
+        Parent parent = parent();
+        Children child = child(parent);
+        Mission mission = mission(parent, child);
+        MissionPerformance pending = performance(mission, child, MissionStatus.PENDING);
         MockMultipartFile image = new MockMultipartFile(
                 "image",
                 "proof.jpg",
@@ -310,12 +335,12 @@ class MissionPerformanceServiceTest {
         when(missionRepository.findById(100L)).thenReturn(Optional.of(mission));
         when(childrenRepository.findById(22L)).thenReturn(Optional.of(child));
         when(performanceRepository.findTopByMissionIdOrderByIdDesc(100L))
-                .thenReturn(Optional.of(accepted));
+                .thenReturn(Optional.of(pending));
 
         assertThatExceptionOfType(MissionException.class)
                 .isThrownBy(() -> missionPerformanceService.verifyAndSaveMission(100L, 22L, image))
                 .satisfies(exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(MissionErrorCode.MISSION_ALREADY_COMPLETED));
+                        assertThat(exception.getErrorCode()).isEqualTo(MissionErrorCode.MISSION_ALREADY_SUBMITTED));
         verifyNoInteractions(storageService, missionSettingRepository, timePolicyRepository, notificationService);
         verify(performanceRepository, never()).save(any());
     }
@@ -368,6 +393,28 @@ class MissionPerformanceServiceTest {
                 .isThrownBy(() -> missionPerformanceService.approveMission(200L, 11L))
                 .satisfies(exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(MissionErrorCode.INVALID_MISSION_STATE));
+        verifyNoInteractions(timePolicyRepository, notificationService);
+        verify(performanceRepository, never()).save(any());
+    }
+
+    @Test
+    void approveMissionRejectsWhenMissionAlreadyHasAcceptedPerformance() {
+        Parent parent = parent();
+        Children child = child(parent);
+        Mission mission = mission(parent, child);
+        MissionPerformance performance = performance(mission, child, MissionStatus.PENDING);
+        MissionSetting setting = setting(mission, VerificationType.PARENT, 30);
+
+        when(performanceRepository.findById(200L)).thenReturn(Optional.of(performance));
+        when(missionSettingRepository.findByMissionId(100L)).thenReturn(Optional.of(setting));
+        when(performanceRepository.existsByMissionIdAndStatus(100L, MissionStatus.ACCEPTED))
+                .thenReturn(true);
+
+        assertThatExceptionOfType(MissionException.class)
+                .isThrownBy(() -> missionPerformanceService.approveMission(200L, 11L))
+                .satisfies(exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(MissionErrorCode.MISSION_ALREADY_COMPLETED));
+        assertThat(performance.getStatus()).isEqualTo(MissionStatus.PENDING);
         verifyNoInteractions(timePolicyRepository, notificationService);
         verify(performanceRepository, never()).save(any());
     }

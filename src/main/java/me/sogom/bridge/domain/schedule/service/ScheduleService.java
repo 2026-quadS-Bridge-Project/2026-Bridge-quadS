@@ -347,19 +347,20 @@ public class ScheduleService {
                 .mapToInt(WeeklyBudgetRequest::getAllocatedMinutes)
                 .sum();
 
-        List<WeeklyBudget> existingBudgets = weeklyBudgetRepository.findAllByChildIdAndYearMonth(childId, yearMonth);
-        int monthlyBudgetLimit = existingBudgets.isEmpty()
-                ? policy.getBaseTime()
-                : existingBudgets.stream()
-                        .mapToInt(WeeklyBudget::getAllocatedMinutes)
-                        .sum();
-
-        // 3. 한 달 분배 기준과 정확히 일치하는지 검증
-        if (totalRequestedMinutes != monthlyBudgetLimit) {
-            throw new IllegalArgumentException("주차별 분배 시간의 합은 한 달 총량과 같아야 합니다.");
+        // 3. 한 달 총량을 초과하는지 검증
+        if (totalRequestedMinutes > policy.getBaseTime()) {
+            throw new IllegalArgumentException("주차별 분배 시간이 한 달 총량을 초과할 수 없습니다.");
         }
 
-        // 기존 데이터가 있다면 삭제 후 새로 저장한다. 템플릿도 함께 비워야 재시도/재설정 시 이전 요일이 섞이지 않는다.
+        // 기존 데이터 조회
+        List<WeeklyBudget> existingBudgets =
+                weeklyBudgetRepository.findAllByChildIdAndYearMonth(
+                        childId,
+                        yearMonth
+                );
+
+        // 기존 데이터가 있다면 삭제 후 새로 저장한다.
+        // 템플릿도 함께 비워야 재시도/재설정 시 이전 요일이 섞이지 않는다.
         weeklyBudgetRepository.deleteAll(existingBudgets);
         weeklyRepository.deleteAll(weeklyRepository.findAllByChildIdAndYearMonth(childId, yearMonth));
 

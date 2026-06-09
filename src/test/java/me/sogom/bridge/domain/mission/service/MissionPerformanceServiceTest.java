@@ -118,6 +118,85 @@ class MissionPerformanceServiceTest {
     }
 
     @Test
+    void verifyAndSaveMissionRewardsImmediatelyForChildVerification() throws Exception {
+        Parent parent = parent();
+        Children child = child(parent);
+        Mission mission = mission(parent, child);
+        MissionSetting setting = setting(mission, VerificationType.CHILD, 30);
+        TimePolicy timePolicy = timePolicy(parent, child, 600, 5);
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "proof.jpg",
+                "image/jpeg",
+                new byte[]{1}
+        );
+
+        when(missionRepository.findById(100L)).thenReturn(Optional.of(mission));
+        when(childrenRepository.findById(22L)).thenReturn(Optional.of(child));
+        when(performanceRepository.findTopByMissionIdOrderByIdDesc(100L))
+                .thenReturn(Optional.empty());
+        when(storageService.upload(any(), any())).thenReturn("mission/proof.jpg");
+        when(missionSettingRepository.findByMissionId(100L)).thenReturn(Optional.of(setting));
+        when(timePolicyRepository.findByChildIdAndYearMonth(22L, YearMonth.now().toString()))
+                .thenReturn(Optional.of(timePolicy));
+        when(performanceRepository.save(any(MissionPerformance.class))).thenAnswer(invocation -> {
+            MissionPerformance saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 201L);
+            return saved;
+        });
+
+        AiVerificationResponse response = missionPerformanceService.verifyAndSaveMission(
+                100L,
+                22L,
+                image
+        );
+
+        assertThat(response.isAccepted()).isTrue();
+        assertThat(response.status()).isEqualTo(MissionStatus.ACCEPTED);
+        assertThat(response.performanceId()).isEqualTo(201L);
+        assertThat(timePolicy.getAccumulatedRewardTime()).isEqualTo(35);
+        verifyNoInteractions(aiService);
+        verify(timePolicyRepository).save(timePolicy);
+        verify(notificationService).createNotification(
+                eq(11L),
+                eq(MemberRole.PARENT),
+                eq("미션 완료"),
+                eq("하늘님이 미션을 완료했습니다."),
+                eq(NotificationType.MISSION_APPROVED),
+                eq(22L),
+                eq(100L),
+                eq(201L),
+                eq("/today-mission?childrenId=22")
+        );
+    }
+
+    @Test
+    void verifyAndSaveMissionRejectsAlreadyAcceptedMission() {
+        Parent parent = parent();
+        Children child = child(parent);
+        Mission mission = mission(parent, child);
+        MissionPerformance accepted = performance(mission, child, MissionStatus.ACCEPTED);
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "proof.jpg",
+                "image/jpeg",
+                new byte[]{1}
+        );
+
+        when(missionRepository.findById(100L)).thenReturn(Optional.of(mission));
+        when(childrenRepository.findById(22L)).thenReturn(Optional.of(child));
+        when(performanceRepository.findTopByMissionIdOrderByIdDesc(100L))
+                .thenReturn(Optional.of(accepted));
+
+        assertThatExceptionOfType(MissionException.class)
+                .isThrownBy(() -> missionPerformanceService.verifyAndSaveMission(100L, 22L, image))
+                .satisfies(exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(MissionErrorCode.MISSION_ALREADY_COMPLETED));
+        verifyNoInteractions(storageService, missionSettingRepository, timePolicyRepository, notificationService);
+        verify(performanceRepository, never()).save(any());
+    }
+
+    @Test
     void approveMissionRewardsOnlyParentVerificationPerformance() {
         Parent parent = parent();
         Children child = child(parent);
@@ -148,6 +227,25 @@ class MissionPerformanceServiceTest {
                 eq(200L),
                 eq("/child-home/mission/100")
         );
+    }
+
+    @Test
+    void approveMissionRejectsAlreadyAcceptedPerformanceWithoutReward() {
+        Parent parent = parent();
+        Children child = child(parent);
+        Mission mission = mission(parent, child);
+        MissionPerformance performance = performance(mission, child, MissionStatus.ACCEPTED);
+        MissionSetting setting = setting(mission, VerificationType.PARENT, 30);
+
+        when(performanceRepository.findById(200L)).thenReturn(Optional.of(performance));
+        when(missionSettingRepository.findByMissionId(100L)).thenReturn(Optional.of(setting));
+
+        assertThatExceptionOfType(MissionException.class)
+                .isThrownBy(() -> missionPerformanceService.approveMission(200L, 11L))
+                .satisfies(exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(MissionErrorCode.INVALID_MISSION_STATE));
+        verifyNoInteractions(timePolicyRepository, notificationService);
+        verify(performanceRepository, never()).save(any());
     }
 
     @Test

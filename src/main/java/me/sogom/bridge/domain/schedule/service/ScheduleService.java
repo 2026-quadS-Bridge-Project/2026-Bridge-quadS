@@ -8,6 +8,7 @@ import me.sogom.bridge.domain.policy.repository.TimePolicyRepository;
 import me.sogom.bridge.domain.schedule.dto.RoutineRequest;
 import me.sogom.bridge.domain.schedule.dto.WeeklyBudgetRequest;
 import me.sogom.bridge.domain.schedule.dto.WeeklyTemplateRequest;
+import me.sogom.bridge.domain.schedule.dto.DailyScheduleResponse;
 import me.sogom.bridge.domain.schedule.entity.DailyTimeAllocation;
 import me.sogom.bridge.domain.schedule.entity.WeeklyBudget;
 import me.sogom.bridge.domain.schedule.entity.WeeklyRoutine;
@@ -23,6 +24,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -41,15 +43,15 @@ public class ScheduleService {
         // 오늘 날짜의 데이터가 이미 있는지 DB에서 확인
         return dailyRepository.findByChildIdAndTargetDate(childId, targetDate)
                 .orElseGet(() -> {
-                    // 없다면 오늘이 무슨 요일인지 확인
                     DayOfWeek dayOfWeek = targetDate.getDayOfWeek();
+                    String yearMonth = yearMonthOf(targetDate);
+                    int weekNumber = weekNumberOf(targetDate);
 
-                    // 해당 요일의 '기본 템플릿(Weekly)'을 가져오기
-                    WeeklyTimeDistribution template = weeklyRepository.findByChildIdAndDayOfWeek(childId, dayOfWeek)
+                    WeeklyTimeDistribution template = weeklyRepository.findByChildIdAndDayOfWeekAndYearMonthAndWeekNumber(
+                                    childId, dayOfWeek, yearMonth, weekNumber)
                             .orElseThrow(() -> new IllegalArgumentException("해당 요일의 기본 시간표 설정이 없습니다."));
 
                     // 이번 달 부모 정책 가져오기
-                    String yearMonth = targetDate.format(DateTimeFormatter.ofPattern("yyyy-MM"));
                     TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
                             .orElseThrow(() -> new IllegalArgumentException("해당 월의 부모 정책이 설정되지 않았습니다."));
 
@@ -72,6 +74,37 @@ public class ScheduleService {
 
                     return dailyRepository.save(newAllocation);
                 });
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasChildPlan(Long childId, String yearMonth) {
+        boolean hasWeeklyBudget = !weeklyBudgetRepository.findAllByChildIdAndYearMonth(childId, yearMonth).isEmpty();
+        boolean hasWeeklyTemplate = !weeklyRepository.findAllByChildIdAndYearMonth(childId, yearMonth).isEmpty();
+        return hasWeeklyBudget && hasWeeklyTemplate;
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<DailyScheduleResponse> findDailySchedulePreview(Long childId, LocalDate targetDate) {
+        Optional<DailyTimeAllocation> allocation = dailyRepository.findByChildIdAndTargetDate(childId, targetDate);
+        if (allocation.isPresent()) {
+            return allocation.map(DailyScheduleResponse::from);
+        }
+
+        String yearMonth = yearMonthOf(targetDate);
+        int weekNumber = weekNumberOf(targetDate);
+        DayOfWeek dayOfWeek = targetDate.getDayOfWeek();
+
+        return weeklyRepository.findByChildIdAndDayOfWeekAndYearMonthAndWeekNumber(
+                        childId, dayOfWeek, yearMonth, weekNumber)
+                .map(template -> DailyScheduleResponse.preview(targetDate, template.getBaseMinutes(), 0));
+    }
+
+    public String yearMonthOf(LocalDate targetDate) {
+        return targetDate.format(DateTimeFormatter.ofPattern("yyyy-MM"));
+    }
+
+    public int weekNumberOf(LocalDate targetDate) {
+        return Math.min(((targetDate.getDayOfMonth() - 1) / 7) + 1, 4);
     }
 
     //자녀가 여분(보상) 시간을 사용해 오늘 시간을 연장할 때

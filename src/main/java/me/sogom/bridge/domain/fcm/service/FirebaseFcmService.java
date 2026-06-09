@@ -57,6 +57,7 @@ public class FirebaseFcmService implements FcmService {
             }
             Message.Builder firebaseMessageBuilder = Message.builder()
                     .setToken(token);
+            applyVisibleNotification(firebaseMessageBuilder, message);
             message.dataPayload().forEach(firebaseMessageBuilder::putData);
             Message firebaseMessage = firebaseMessageBuilder.build();
             FirebaseMessaging.getInstance().send(firebaseMessage);
@@ -108,5 +109,30 @@ public class FirebaseFcmService implements FcmService {
         }
 
         return null;
+    }
+
+    private void applyVisibleNotification(
+            Message.Builder firebaseMessageBuilder,
+            FcmMessageDTO message
+    ) {
+
+        if (isBlank(message.title()) && isBlank(message.body())) {
+            return;
+        }
+
+        com.google.firebase.messaging.Notification.Builder notificationBuilder =
+                com.google.firebase.messaging.Notification.builder();
+        if (!isBlank(message.title())) {
+            notificationBuilder.setTitle(message.title());
+        }
+        if (!isBlank(message.body())) {
+            notificationBuilder.setBody(message.body());
+        }
+
+        firebaseMessageBuilder.setNotification(notificationBuilder.build());
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }

@@ -2,7 +2,10 @@ package me.sogom.bridge.domain.schedule.service;
 
 import lombok.RequiredArgsConstructor;
 import me.sogom.bridge.domain.member.entity.Children;
+import me.sogom.bridge.domain.member.entity.Parent;
 import me.sogom.bridge.domain.member.repository.ChildrenRepository;
+import me.sogom.bridge.domain.notification.entity.NotificationType;
+import me.sogom.bridge.domain.notification.service.NotificationService;
 import me.sogom.bridge.domain.policy.entity.TimePolicy;
 import me.sogom.bridge.domain.policy.repository.TimePolicyRepository;
 import me.sogom.bridge.domain.schedule.dto.RoutineRequest;
@@ -17,6 +20,7 @@ import me.sogom.bridge.domain.schedule.repository.DailyTimeAllocationRepository;
 import me.sogom.bridge.domain.schedule.repository.WeeklyBudgetRepository;
 import me.sogom.bridge.domain.schedule.repository.WeeklyRoutineRepository;
 import me.sogom.bridge.domain.schedule.repository.WeeklyTimeDistributionRepository;
+import me.sogom.bridge.global.security.entity.MemberRole;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +40,7 @@ public class ScheduleService {
     private final TimePolicyRepository timePolicyRepository;
     private final WeeklyRoutineRepository routineRepository;
     private final WeeklyBudgetRepository weeklyBudgetRepository;
+    private final NotificationService notificationService;
 
     //오늘의 실제 제한 시간 조회 (없으면 요일 템플릿에서 동적 복사)
     @Transactional
@@ -81,6 +86,31 @@ public class ScheduleService {
         boolean hasWeeklyBudget = !weeklyBudgetRepository.findAllByChildIdAndYearMonth(childId, yearMonth).isEmpty();
         boolean hasWeeklyTemplate = !weeklyRepository.findAllByChildIdAndYearMonth(childId, yearMonth).isEmpty();
         return hasWeeklyBudget && hasWeeklyTemplate;
+    }
+
+    @Transactional
+    public void completeTimePlan(Long childId, String yearMonth) {
+        if (!hasChildPlan(childId, yearMonth)) {
+            throw new IllegalArgumentException("시간 계획이 아직 완료되지 않았습니다.");
+        }
+
+        Children child = childrenRepository.findById(childId).orElseThrow();
+        Parent parent = child.getParent();
+        if (parent == null) {
+            return;
+        }
+
+        notificationService.createNotification(
+                parent.getId(),
+                MemberRole.PARENT,
+                "시간 계획 완료",
+                child.getName() + "님이 " + yearMonth + " 사용 시간 설정을 완료했습니다.",
+                NotificationType.GENERAL,
+                child.getId(),
+                null,
+                null,
+                "/today-time?childrenId=" + child.getId()
+        );
     }
 
     @Transactional(readOnly = true)

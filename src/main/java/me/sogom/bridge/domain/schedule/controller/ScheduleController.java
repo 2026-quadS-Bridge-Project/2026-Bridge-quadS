@@ -119,4 +119,13 @@ public class ScheduleController {
         scheduleService.createWeeklyBudgets(user.asChildren().getId(), yearMonth, requests);
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, null);
     }
+
+    @PostMapping("/complete")
+    public ApiResponse<Void> completeTimePlan(
+            @AuthenticationPrincipal AuthMember user,
+            @RequestParam String yearMonth) {
+
+        scheduleService.completeTimePlan(user.asChildren().getId(), yearMonth);
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, null);
+    }
 }

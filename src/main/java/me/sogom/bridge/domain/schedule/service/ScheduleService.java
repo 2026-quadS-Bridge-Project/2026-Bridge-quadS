@@ -336,24 +336,31 @@ public class ScheduleService {
     }
     @Transactional
     public void createWeeklyBudgets(Long childId, String yearMonth, List<WeeklyBudgetRequest> requests) {
-// 1. 부모가 설정한 이번 달 총 가용 시간 조회
+        // 1. 부모가 설정한 이번 달 기본 시간 풀 조회
         TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
                 .orElseThrow(() -> new IllegalArgumentException("정책이 없습니다."));
 
         validateFourWeekBudgetRequests(requests);
 
-// 2. 자녀가 요청한 1~4주차 시간의 총합 계산
+        // 2. 자녀가 요청한 1~4주차 시간의 총합 계산
         int totalRequestedMinutes = requests.stream()
                 .mapToInt(WeeklyBudgetRequest::getAllocatedMinutes)
                 .sum();
 
-// 3. 한 달 총량과 정확히 일치하는지 검증
-        if (totalRequestedMinutes != policy.getBaseTime()) {
+        List<WeeklyBudget> existingBudgets = weeklyBudgetRepository.findAllByChildIdAndYearMonth(childId, yearMonth);
+        int monthlyBudgetLimit = existingBudgets.isEmpty()
+                ? policy.getBaseTime()
+                : existingBudgets.stream()
+                        .mapToInt(WeeklyBudget::getAllocatedMinutes)
+                        .sum();
+
+        // 3. 한 달 분배 기준과 정확히 일치하는지 검증
+        if (totalRequestedMinutes != monthlyBudgetLimit) {
             throw new IllegalArgumentException("주차별 분배 시간의 합은 한 달 총량과 같아야 합니다.");
         }
 
         // 기존 데이터가 있다면 삭제 후 새로 저장한다. 템플릿도 함께 비워야 재시도/재설정 시 이전 요일이 섞이지 않는다.
-        weeklyBudgetRepository.deleteAll(weeklyBudgetRepository.findAllByChildIdAndYearMonth(childId, yearMonth));
+        weeklyBudgetRepository.deleteAll(existingBudgets);
         weeklyRepository.deleteAll(weeklyRepository.findAllByChildIdAndYearMonth(childId, yearMonth));
 
         Children child = childrenRepository.findById(childId).orElseThrow();

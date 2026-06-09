@@ -47,15 +47,27 @@ public class TimePolicy extends BaseEntity {
 
     public void updateBaseTime(int baseTime) { this.baseTime = baseTime; }
 
-    public void deductRewardTime(int minutes) {
+    // 기본 제공 시간과 보상 시간을 합쳐서 사용할 시간을 차감한다.
+    // 기본 시간이 먼저 소진되고, 부족한 부분만 보상 시간에서 차감된다.
+    public void deductAvailableTime(int minutes) {
         if (minutes <= 0) {
-            throw new IllegalArgumentException("사용할 보상 시간은 0보다 커야 합니다.");
+            throw new IllegalArgumentException("사용할 시간은 0보다 커야 합니다.");
         }
-        if (this.accumulatedRewardTime < minutes) {
-            throw new IllegalArgumentException("사용 가능한 보상 시간이 부족하여 연장할 수 없습니다.");
+        int totalAvailable = this.baseTime + this.accumulatedRewardTime;
+        if (totalAvailable < minutes) {
+            throw new IllegalArgumentException("사용 가능한 총 시간(기본+보상)이 부족하여 연장할 수 없습니다.");
         }
-        this.accumulatedRewardTime -= minutes;
+
+        if (this.baseTime >= minutes) {
+            this.baseTime -= minutes;
+            return;
+        }
+
+        int remainder = minutes - this.baseTime;
+        this.baseTime = 0;
+        this.accumulatedRewardTime -= remainder;
     }
+
     //자녀가 당일에 쓰지 않고 남긴 시간을 보상 시간 풀로 다시 환불(적립)해주는 메서드
     public void refundUnusedTime(int unusedMinutes) {
         if (unusedMinutes < 0) {

@@ -62,10 +62,13 @@ public class ScheduleService {
                                     childId, dayOfWeek, yearMonth, weekNumber)
                             .orElseThrow(() -> new IllegalArgumentException("해당 요일의 기본 시간표 설정이 없습니다."));
 
-                    // 이번 달 부모 정책 존재 여부만 확인한다. TimePolicy.baseTime은
-                    // 부모가 설정한 월 총량이므로 일별 allocation 생성만으로 차감하지 않는다.
-                    timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
+                    // 이번 달 부모 정책 가져오기
+                    TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
                             .orElseThrow(() -> new IllegalArgumentException("해당 월의 부모 정책이 설정되지 않았습니다."));
+
+                    // 템플릿에 설정된 시간만큼 기본 시간에서 선차감 진행
+                    policy.deductAvailableTime(template.getBaseMinutes());
+                    timePolicyRepository.save(policy);
 
                     // 자녀 엔티티 조회
                     Children child = childrenRepository.findById(childId).orElseThrow();
@@ -84,6 +87,10 @@ public class ScheduleService {
 
     @Transactional(readOnly = true)
     public boolean hasChildPlan(Long childId, String yearMonth) {
+        if (timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth).isEmpty()) {
+            return false;
+        }
+
         List<WeeklyBudget> budgets = weeklyBudgetRepository.findAllByChildIdAndYearMonth(childId, yearMonth);
         Set<Integer> budgetWeeks = budgets.stream()
                 .map(WeeklyBudget::getWeekNumber)
@@ -109,11 +116,18 @@ public class ScheduleService {
             return false;
         }
 
-        return timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
-                .map(policy -> budgets.stream()
-                        .mapToInt(WeeklyBudget::getAllocatedMinutes)
-                        .sum() == policy.getBaseTime())
-                .orElse(false);
+        return true;
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Integer> findMonthlyBudgetTotal(Long childId, String yearMonth) {
+        List<WeeklyBudget> budgets = weeklyBudgetRepository.findAllByChildIdAndYearMonth(childId, yearMonth);
+        if (budgets.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(budgets.stream()
+                .mapToInt(WeeklyBudget::getAllocatedMinutes)
+                .sum());
     }
 
     @Transactional
@@ -195,8 +209,8 @@ public class ScheduleService {
         TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
                 .orElseThrow(() -> new IllegalArgumentException("해당 월의 부모 정책이 설정되지 않았습니다."));
 
-        // 오늘 시간 연장은 미션으로 쌓인 보상 풀에서만 사용한다. 부모 월 총량은 재분배 기준이라 차감하지 않는다.
-        policy.deductRewardTime(extraMinutes);
+        // 기본 시간에서 먼저 차감하고, 부족한 경우 보상 시간에서 차감한다.
+        policy.deductAvailableTime(extraMinutes);
 
         //오늘의 스케줄 데이터를 가져오기
         DailyTimeAllocation allocation = getOrCreateDailyAllocation(childId, targetDate);
@@ -280,8 +294,7 @@ public class ScheduleService {
         routineRepository.delete(routine);
     }
     /**
-     하루 마무리 또는 앱 pause 시점에 실제 사용 시간을 coarse sync로 기록한다.
-     남은 시간을 보상 풀로 환불하지 않는다.
+     하루 마무리 시 실제 사용 시간을 기록하고 남은 시간을 보상 풀로 환불한다.
      * @param actualUsedMinutes 자녀가 오늘 실제로 스마트폰을 사용한 시간 (분 단위)
      */
     @Transactional
@@ -300,6 +313,18 @@ public class ScheduleService {
         // 가드 로직: 혹시 실제 사용 시간이 준 시간보다 많으면 연산 오류이므로 방어
         if (actualUsedMinutes > totalAllocatedTime) {
             throw new IllegalArgumentException("실제 사용 시간이 할당된 총 시간을 초과할 수 없습니다.");
+        }
+
+        // 남은 시간 계산하기 (할당량 - 실제 사용량)
+        int unusedMinutes = totalAllocatedTime - actualUsedMinutes;
+
+        // 남은 시간이 존재한다면 부모 정책(TimePolicy) 데이터에 환불 절차 진행
+        if (unusedMinutes > 0) {
+            String yearMonth = targetDate.format(DateTimeFormatter.ofPattern("yyyy-MM"));
+            TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
+                    .orElseThrow(() -> new IllegalArgumentException("해당 월의 부모 정책을 찾을 수 없습니다."));
+
+            policy.refundUnusedTime(unusedMinutes);
         }
 
         // 오늘자 할당 기록의 baseMinutes와 extendedMinutes를 정산된 결과에 맞게 재조정

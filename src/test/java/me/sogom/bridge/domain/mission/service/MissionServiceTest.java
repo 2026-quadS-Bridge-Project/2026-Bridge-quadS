@@ -11,6 +11,7 @@ import me.sogom.bridge.domain.mission.entity.MissionCategory;
 import me.sogom.bridge.domain.mission.entity.MissionSetting;
 import me.sogom.bridge.domain.mission.entity.ResetCycle;
 import me.sogom.bridge.domain.mission.entity.VerificationType;
+import me.sogom.bridge.domain.mission.exception.MissionErrorCode;
 import me.sogom.bridge.domain.mission.exception.MissionException;
 import me.sogom.bridge.domain.mission.repository.MissionRepository;
 import me.sogom.bridge.domain.mission.repository.MissionSettingRepository;
@@ -125,6 +126,66 @@ class MissionServiceTest {
         );
     }
 
+    @Test
+    void getMissionDetailAllowsOwningParent() {
+        Parent parent = parent(11L);
+        Children child = child(22L, parent);
+        Mission mission = mission(100L, parent, child);
+        MissionSetting setting = missionSetting(mission);
+        when(missionRepository.findById(100L)).thenReturn(Optional.of(mission));
+        when(missionSettingRepository.findByMissionId(100L)).thenReturn(Optional.of(setting));
+
+        MissionResDTO.MissionResponse response = missionService.getMissionDetail(
+                100L,
+                MemberRole.PARENT,
+                11L
+        );
+
+        assertThat(response.missionId()).isEqualTo(100L);
+        assertThat(response.childId()).isEqualTo(22L);
+        assertThat(response.title()).isEqualTo("방 정리");
+    }
+
+    @Test
+    void getMissionDetailAllowsAssignedChild() {
+        Parent parent = parent(11L);
+        Children child = child(22L, parent);
+        Mission mission = mission(100L, parent, child);
+        MissionSetting setting = missionSetting(mission);
+        when(missionRepository.findById(100L)).thenReturn(Optional.of(mission));
+        when(missionSettingRepository.findByMissionId(100L)).thenReturn(Optional.of(setting));
+
+        MissionResDTO.MissionResponse response = missionService.getMissionDetail(
+                100L,
+                MemberRole.CHILDREN,
+                22L
+        );
+
+        assertThat(response.missionId()).isEqualTo(100L);
+        assertThat(response.childId()).isEqualTo(22L);
+        assertThat(response.title()).isEqualTo("방 정리");
+    }
+
+    @Test
+    void getMissionDetailRejectsUnrelatedViewer() {
+        Parent parent = parent(11L);
+        Children child = child(22L, parent);
+        Mission mission = mission(100L, parent, child);
+        when(missionRepository.findById(100L)).thenReturn(Optional.of(mission));
+
+        assertThatThrownBy(() -> missionService.getMissionDetail(
+                100L,
+                MemberRole.PARENT,
+                99L
+        ))
+                .isInstanceOf(MissionException.class)
+                .satisfies(exception ->
+                        assertThat(((MissionException) exception).getErrorCode())
+                                .isEqualTo(MissionErrorCode.UNAUTHORIZED_ACCESS));
+
+        verify(missionSettingRepository, never()).findByMissionId(any());
+    }
+
     private MissionReqDTO.CreateMissionRequest createMissionRequest(Long childId) {
         return new MissionReqDTO.CreateMissionRequest(
                 childId,
@@ -153,6 +214,26 @@ class MissionServiceTest {
                 .email("child@test.com")
                 .hash("hash")
                 .parent(parent)
+                .build();
+    }
+
+    private Mission mission(Long id, Parent parent, Children child) {
+        return Mission.builder()
+                .id(id)
+                .parent(parent)
+                .child(child)
+                .title("방 정리")
+                .build();
+    }
+
+    private MissionSetting missionSetting(Mission mission) {
+        return MissionSetting.builder()
+                .mission(mission)
+                .category(MissionCategory.CLEANING)
+                .resetCycle(ResetCycle.DAILY)
+                .verificationType(VerificationType.PARENT)
+                .reward(30)
+                .description("책상 정리")
                 .build();
     }
 }

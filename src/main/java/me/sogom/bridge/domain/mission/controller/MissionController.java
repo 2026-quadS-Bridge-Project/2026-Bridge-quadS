@@ -78,9 +78,23 @@ public class MissionController {
     //미션 상세정보 조회 API
     @GetMapping("/{missionId}")
     public ApiResponse<MissionResDTO.MissionResponse> getMissionDetail(
-            @PathVariable("missionId") Long missionId) {
+            @PathVariable("missionId") Long missionId,
+            @AuthenticationPrincipal AuthMember authMember) {
 
-        MissionResDTO.MissionResponse response = missionService.getMissionDetail(missionId);
+        Long viewerId;
+        if (authMember.getRole() == MemberRole.PARENT) {
+            viewerId = authMember.asParent().getId();
+        } else if (authMember.getRole() == MemberRole.CHILDREN) {
+            viewerId = authMember.asChildren().getId();
+        } else {
+            throw new ProjectException(GeneralErrorCode.FORBIDDEN);
+        }
+
+        MissionResDTO.MissionResponse response = missionService.getMissionDetail(
+                missionId,
+                authMember.getRole(),
+                viewerId
+        );
         return ApiResponse.onSuccess(MissionSuccessCode.MISSION_LIST_SUCCESS, response);
     }
 

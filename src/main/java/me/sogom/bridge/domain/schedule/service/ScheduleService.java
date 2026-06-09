@@ -29,6 +29,8 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -78,9 +80,16 @@ public class ScheduleService {
 
     @Transactional(readOnly = true)
     public boolean hasChildPlan(Long childId, String yearMonth) {
-        boolean hasWeeklyBudget = !weeklyBudgetRepository.findAllByChildIdAndYearMonth(childId, yearMonth).isEmpty();
-        boolean hasWeeklyTemplate = !weeklyRepository.findAllByChildIdAndYearMonth(childId, yearMonth).isEmpty();
-        return hasWeeklyBudget && hasWeeklyTemplate;
+        Set<Integer> budgetWeeks = weeklyBudgetRepository.findAllByChildIdAndYearMonth(childId, yearMonth).stream()
+                .map(WeeklyBudget::getWeekNumber)
+                .collect(Collectors.toSet());
+        Set<Integer> templateWeeks = weeklyRepository.findAllByChildIdAndYearMonth(childId, yearMonth).stream()
+                .filter(template -> template.getBaseMinutes() > 0)
+                .map(WeeklyTimeDistribution::getWeekNumber)
+                .collect(Collectors.toSet());
+
+        Set<Integer> requiredWeeks = Set.of(1, 2, 3, 4);
+        return budgetWeeks.containsAll(requiredWeeks) && templateWeeks.containsAll(requiredWeeks);
     }
 
     @Transactional

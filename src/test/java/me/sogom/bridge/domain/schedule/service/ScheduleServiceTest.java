@@ -158,9 +158,19 @@ class ScheduleServiceTest {
                 .build();
 
         when(weeklyBudgetRepository.findAllByChildIdAndYearMonth(22L, "2026-06"))
-                .thenReturn(List.of(WeeklyBudget.builder().child(child).yearMonth("2026-06").weekNumber(1).allocatedMinutes(60).build()));
+                .thenReturn(List.of(
+                        weeklyBudget(child, 1, 60),
+                        weeklyBudget(child, 2, 60),
+                        weeklyBudget(child, 3, 60),
+                        weeklyBudget(child, 4, 60)
+                ));
         when(weeklyRepository.findAllByChildIdAndYearMonth(22L, "2026-06"))
-                .thenReturn(List.of(WeeklyTimeDistribution.builder().child(child).yearMonth("2026-06").weekNumber(1).dayOfWeek(DayOfWeek.MONDAY).baseMinutes(60).build()));
+                .thenReturn(List.of(
+                        weeklyTemplate(child, 1, DayOfWeek.MONDAY, 60),
+                        weeklyTemplate(child, 2, DayOfWeek.MONDAY, 60),
+                        weeklyTemplate(child, 3, DayOfWeek.MONDAY, 60),
+                        weeklyTemplate(child, 4, DayOfWeek.MONDAY, 60)
+                ));
         when(childrenRepository.findById(22L)).thenReturn(Optional.of(child));
 
         scheduleService.completeTimePlan(22L, "2026-06");
@@ -189,6 +199,46 @@ class ScheduleServiceTest {
 
         verify(notificationService, never()).createNotification(
                 eq(11L),
+                eq(MemberRole.PARENT),
+                eq("시간 계획 완료"),
+                contains("하늘"),
+                eq(NotificationType.GENERAL),
+                eq(22L),
+                isNull(),
+                isNull(),
+                eq("/today-time?childrenId=22")
+        );
+    }
+
+    @Test
+    void completeTimePlanRequiresAllFourBudgetAndTemplateWeeks() {
+        Children child = Children.builder()
+                .id(22L)
+                .name("하늘")
+                .email("child@test.com")
+                .hash("hash")
+                .build();
+
+        when(weeklyBudgetRepository.findAllByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(List.of(
+                        weeklyBudget(child, 1, 60),
+                        weeklyBudget(child, 2, 60),
+                        weeklyBudget(child, 3, 60),
+                        weeklyBudget(child, 4, 60)
+                ));
+        when(weeklyRepository.findAllByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(List.of(
+                        weeklyTemplate(child, 1, DayOfWeek.MONDAY, 60),
+                        weeklyTemplate(child, 2, DayOfWeek.MONDAY, 60),
+                        weeklyTemplate(child, 3, DayOfWeek.MONDAY, 60)
+                ));
+
+        assertThatThrownBy(() -> scheduleService.completeTimePlan(22L, "2026-06"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("시간 계획");
+
+        verify(notificationService, never()).createNotification(
+                anyLong(),
                 eq(MemberRole.PARENT),
                 eq("시간 계획 완료"),
                 contains("하늘"),
@@ -298,6 +348,30 @@ class ScheduleServiceTest {
         ReflectionTestUtils.setField(request, "weekNumber", weekNumber);
         ReflectionTestUtils.setField(request, "allocatedMinutes", allocatedMinutes);
         return request;
+    }
+
+    private WeeklyBudget weeklyBudget(Children child, int weekNumber, int allocatedMinutes) {
+        return WeeklyBudget.builder()
+                .child(child)
+                .yearMonth("2026-06")
+                .weekNumber(weekNumber)
+                .allocatedMinutes(allocatedMinutes)
+                .build();
+    }
+
+    private WeeklyTimeDistribution weeklyTemplate(
+            Children child,
+            int weekNumber,
+            DayOfWeek dayOfWeek,
+            int baseMinutes
+    ) {
+        return WeeklyTimeDistribution.builder()
+                .child(child)
+                .yearMonth("2026-06")
+                .weekNumber(weekNumber)
+                .dayOfWeek(dayOfWeek)
+                .baseMinutes(baseMinutes)
+                .build();
     }
 
     private WeeklyTemplateRequest weeklyTemplateRequest(

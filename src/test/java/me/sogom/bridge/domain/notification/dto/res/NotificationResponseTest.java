@@ -4,6 +4,7 @@ import me.sogom.bridge.domain.notification.entity.Notification;
 import me.sogom.bridge.domain.notification.entity.NotificationType;
 import me.sogom.bridge.global.security.entity.MemberRole;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -23,6 +24,7 @@ class NotificationResponseTest {
                 .performanceId(4L)
                 .targetRoute("/today-mission?childrenId=2")
                 .build();
+        ReflectionTestUtils.setField(notification, "id", 5L);
 
         NotificationResDTO.NotificationResponse response =
                 NotificationResDTO.NotificationResponse.of(notification);
@@ -32,6 +34,9 @@ class NotificationResponseTest {
         assertThat(response.performanceId()).isEqualTo(4L);
         assertThat(response.deeplink()).isEqualTo("/today-mission?childrenId=2");
         assertThat(response.payload())
+                .containsEntry("notificationId", "5")
+                .containsEntry("notificationType", "MISSION_REQUESTED")
+                .containsEntry("type", "MISSION_REQUESTED")
                 .containsEntry("childId", "2")
                 .containsEntry("childrenId", "2")
                 .containsEntry("missionId", "3")

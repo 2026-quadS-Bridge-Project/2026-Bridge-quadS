@@ -57,6 +57,13 @@ public class NotificationResDTO {
 
         private static Map<String, Object> payloadOf(Notification notification) {
             Map<String, Object> payload = new LinkedHashMap<>();
+            if (notification.getId() != null) {
+                payload.put("notificationId", notification.getId().toString());
+            }
+            if (notification.getNotificationType() != null) {
+                payload.put("notificationType", notification.getNotificationType().name());
+                payload.put("type", notification.getNotificationType().name());
+            }
             if (notification.getChildId() != null) {
                 payload.put("childId", notification.getChildId().toString());
                 payload.put("childrenId", notification.getChildId().toString());

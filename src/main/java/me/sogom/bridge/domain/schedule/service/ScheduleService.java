@@ -82,7 +82,8 @@ public class ScheduleService {
 
     @Transactional(readOnly = true)
     public boolean hasChildPlan(Long childId, String yearMonth) {
-        Set<Integer> budgetWeeks = weeklyBudgetRepository.findAllByChildIdAndYearMonth(childId, yearMonth).stream()
+        List<WeeklyBudget> budgets = weeklyBudgetRepository.findAllByChildIdAndYearMonth(childId, yearMonth);
+        Set<Integer> budgetWeeks = budgets.stream()
                 .map(WeeklyBudget::getWeekNumber)
                 .collect(Collectors.toSet());
         Set<Integer> templateWeeks = weeklyRepository.findAllByChildIdAndYearMonth(childId, yearMonth).stream()
@@ -91,7 +92,15 @@ public class ScheduleService {
                 .collect(Collectors.toSet());
 
         Set<Integer> requiredWeeks = Set.of(1, 2, 3, 4);
-        return budgetWeeks.containsAll(requiredWeeks) && templateWeeks.containsAll(requiredWeeks);
+        if (!budgetWeeks.containsAll(requiredWeeks) || !templateWeeks.containsAll(requiredWeeks)) {
+            return false;
+        }
+
+        return timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
+                .map(policy -> budgets.stream()
+                        .mapToInt(WeeklyBudget::getAllocatedMinutes)
+                        .sum() == policy.getBaseTime())
+                .orElse(false);
     }
 
     @Transactional

@@ -274,12 +274,77 @@ class ScheduleServiceTest {
                         weeklyTemplate(child, 3, DayOfWeek.MONDAY, 60),
                         weeklyTemplate(child, 4, DayOfWeek.MONDAY, 60)
                 ));
+        when(timePolicyRepository.findByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(Optional.of(TimePolicy.builder()
+                        .parent(parent)
+                        .child(child)
+                        .yearMonth("2026-06")
+                        .baseTime(240)
+                        .accumulatedRewardTime(0)
+                        .build()));
         when(childrenRepository.findById(22L)).thenReturn(Optional.of(child));
 
         scheduleService.completeTimePlan(22L, "2026-06");
 
         verify(notificationService).createNotification(
                 eq(11L),
+                eq(MemberRole.PARENT),
+                eq("시간 계획 완료"),
+                contains("하늘"),
+                eq(NotificationType.GENERAL),
+                eq(22L),
+                isNull(),
+                isNull(),
+                eq("/today-time?childrenId=22")
+        );
+    }
+
+    @Test
+    void completeTimePlanRequiresBudgetTotalToMatchParentPolicy() {
+        Parent parent = Parent.builder()
+                .id(11L)
+                .name("parent")
+                .email("parent@test.com")
+                .hash("hash")
+                .build();
+        Children child = Children.builder()
+                .id(22L)
+                .name("하늘")
+                .email("child@test.com")
+                .hash("hash")
+                .parent(parent)
+                .build();
+
+        when(weeklyBudgetRepository.findAllByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(List.of(
+                        weeklyBudget(child, 1, 60),
+                        weeklyBudget(child, 2, 60),
+                        weeklyBudget(child, 3, 60),
+                        weeklyBudget(child, 4, 60)
+                ));
+        when(weeklyRepository.findAllByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(List.of(
+                        weeklyTemplate(child, 1, DayOfWeek.MONDAY, 60),
+                        weeklyTemplate(child, 2, DayOfWeek.MONDAY, 60),
+                        weeklyTemplate(child, 3, DayOfWeek.MONDAY, 60),
+                        weeklyTemplate(child, 4, DayOfWeek.MONDAY, 60)
+                ));
+        when(timePolicyRepository.findByChildIdAndYearMonth(22L, "2026-06"))
+                .thenReturn(Optional.of(TimePolicy.builder()
+                        .parent(parent)
+                        .child(child)
+                        .yearMonth("2026-06")
+                        .baseTime(300)
+                        .accumulatedRewardTime(0)
+                        .build()));
+
+        assertThatThrownBy(() -> scheduleService.completeTimePlan(22L, "2026-06"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("시간 계획");
+
+        verify(childrenRepository, never()).findById(22L);
+        verify(notificationService, never()).createNotification(
+                anyLong(),
                 eq(MemberRole.PARENT),
                 eq("시간 계획 완료"),
                 contains("하늘"),

@@ -57,6 +57,10 @@ public class MemberReqDTO {
             String childrenName,
 
             @Nullable
+            @Pattern(
+                    regexp = "^\\d{4}$",
+                    message = "자녀 출생연도는 4자리 연도여야 합니다."
+            )
             String childrenBirth,
 
             @NotBlank(message = "자녀 코드를 입력해 주세요.")

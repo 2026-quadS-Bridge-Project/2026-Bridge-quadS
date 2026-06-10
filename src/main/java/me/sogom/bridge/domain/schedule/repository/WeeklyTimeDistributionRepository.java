@@ -17,6 +17,8 @@ public interface WeeklyTimeDistributionRepository extends JpaRepository<WeeklyTi
     // 특정 자녀의 '일주일치 전체' 템플릿 조회 (자녀가 주간 계획표 화면을 열었을 때 사용)
     List<WeeklyTimeDistribution> findAllByChildId(Long childId);
 
+    List<WeeklyTimeDistribution> findAllByChildIdAndYearMonth(Long childId, String yearMonth);
+
     // 특정 주차의 월~일 설정 리스트 전체 조회
     List<WeeklyTimeDistribution> findAllByChildIdAndYearMonthAndWeekNumber(Long childId, String yearMonth, int weekNumber);
 

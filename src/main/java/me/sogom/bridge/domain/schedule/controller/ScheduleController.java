@@ -106,7 +106,7 @@ public class ScheduleController {
     public ApiResponse<String> deleteRoutine(
             @AuthenticationPrincipal AuthMember user,
             @PathVariable Long routineId) {
-        scheduleService.deleteRoutine(routineId);
+        scheduleService.deleteRoutine(user.asChildren().getId(), routineId);
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, "일정이 정상적으로 삭제되었습니다.");
     }
 
@@ -117,6 +117,15 @@ public class ScheduleController {
             @RequestBody List<WeeklyBudgetRequest> requests) { //리스트 내부 객체 타입 명시
 
         scheduleService.createWeeklyBudgets(user.asChildren().getId(), yearMonth, requests);
+        return ApiResponse.onSuccess(GeneralSuccessCode.OK, null);
+    }
+
+    @PostMapping("/complete")
+    public ApiResponse<Void> completeTimePlan(
+            @AuthenticationPrincipal AuthMember user,
+            @RequestParam String yearMonth) {
+
+        scheduleService.completeTimePlan(user.asChildren().getId(), yearMonth);
         return ApiResponse.onSuccess(GeneralSuccessCode.OK, null);
     }
 }

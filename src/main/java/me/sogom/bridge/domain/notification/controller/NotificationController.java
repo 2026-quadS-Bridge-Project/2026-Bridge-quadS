@@ -31,7 +31,11 @@ public class NotificationController {
                 request.memberRole(),
                 request.title(),
                 request.content(),
-                request.notificationType()
+                request.notificationType(),
+                request.childId(),
+                request.missionId(),
+                request.performanceId(),
+                request.targetRoute()
         );
 
         return ApiResponse.onSuccess(

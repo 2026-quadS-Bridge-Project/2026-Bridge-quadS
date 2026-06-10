@@ -35,6 +35,7 @@ public class ChildPolicyService {
 
         //엔티티들을 DTO로 변환하여 반환
         return PolicyResponse.builder()
+                .yearMonth(timePolicy.getYearMonth())
                 .totalAvailableTime(timePolicy.getTotalAvailableTime())
                 .baseTime(timePolicy.getBaseTime())
                 .accumulatedRewardTime(timePolicy.getAccumulatedRewardTime())

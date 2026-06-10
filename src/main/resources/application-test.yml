@@ -11,9 +11,3 @@ spring:
       # 테스트 실행 시마다 테이블을 새로 만들고 종료 시 삭제합니다.
       ddl-auto: create-drop
 
-jwt:
-  token:
-    secret: test-jwt-secret-key-for-bridge-application-context-loads-1234567890
-    expiration:
-      access: 3600000
-      refresh: 1209600000

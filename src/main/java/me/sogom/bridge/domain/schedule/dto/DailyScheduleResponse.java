@@ -25,4 +25,14 @@ public class DailyScheduleResponse {
                 .totalAvailableMinutes(allocation.getTotalAvailableTime())
                 .build();
     }
+
+    public static DailyScheduleResponse preview(LocalDate targetDate, int baseMinutes, int extendedMinutes) {
+        return DailyScheduleResponse.builder()
+                .id(null)
+                .targetDate(targetDate)
+                .baseMinutes(baseMinutes)
+                .extendedMinutes(extendedMinutes)
+                .totalAvailableMinutes(baseMinutes + extendedMinutes)
+                .build();
+    }
 }

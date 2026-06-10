@@ -57,14 +57,18 @@ public class MissionPerformanceService {
             throw new MissionException(MissionErrorCode.UNAUTHORIZED_ACCESS);
         }
 
-        //해당 미션의 가장 최근 수행 내역을 확인합니다.
-        performanceRepository.findTopByMissionIdOrderByIdDesc(missionId)
-                .ifPresent(lastPerformance -> {
-                    // 이미 부모나 AI가 승인(ACCEPTED)한 미션이라면 더 이상 진행하지 못하게 차단!
-                    if (lastPerformance.getStatus() == MissionStatus.ACCEPTED) {
-                        throw new MissionException(MissionErrorCode.MISSION_ALREADY_COMPLETED);
-                    }
-                });
+        assertMissionIsNotCompleted(missionId);
+        assertMissionIsNotPendingReview(missionId);
+
+        // 미션 설정 정보 조회
+        MissionSetting setting = missionSettingRepository.findByMissionId(missionId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 미션의 설정 정보를 찾을 수 없습니다."));
+
+        // 인증 사진을 S3에 업로드하고 key를 performance에 저장 (모든 인증 방식 공통)
+        String proofImageKey = storageService.upload(
+                image,
+                PhotoCategory.MISSION.keyPrefix(MemberRole.CHILDREN.name(), childId)
+        );
 
         // 2. [PENDING 먼저 저장] AI를 호출하기 전에 우선 수행 내역을 'PENDING' 상태로 DB에 저장합니다.
         MissionPerformance performance = MissionPerformance.builder()
@@ -73,18 +77,9 @@ public class MissionPerformanceService {
                 .status(MissionStatus.PENDING) // 무조건 대기 상태로 시작!
                 .reason("AI가 사진을 분석하고 있습니다.")
                 .build();
+        performance.updateProofImageKey(proofImageKey);
         performanceRepository.save(performance);
 
-        // 인증 사진을 S3에 업로드하고 key를 performance에 저장 (모든 인증 방식 공통)
-        String proofImageKey = storageService.upload(
-                image,
-                PhotoCategory.MISSION.keyPrefix(MemberRole.CHILDREN.name(), childId)
-        );
-        performance.updateProofImageKey(proofImageKey);
-
-        // 미션 설정 정보 조회
-        MissionSetting setting = missionSettingRepository.findByMissionId(missionId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 미션의 설정 정보를 찾을 수 없습니다."));
         MissionCategory category = setting.getCategory();   //카테고리를 미션id로 받아옴
         String prompt = setting.getDescription();   //부모가 미션 세팅 시 미션 설명 적은걸 가져옴
 
@@ -107,12 +102,18 @@ public class MissionPerformanceService {
                     MemberRole.PARENT,
                     "미션 확인 요청",
                     child.getName() + "님이 미션 확인을 요청했습니다.",
-                    NotificationType.GENERAL
+                    NotificationType.MISSION_REQUESTED,
+                    child.getId(),
+                    mission.getId(),
+                    performance.getId(),
+                    "/today-mission?childrenId=" + child.getId()
             );
 
             return new AiVerificationResponse(
                     false,
-                    "부모님 확인 대기중입니다."
+                    "부모님 확인 대기중입니다.",
+                    performance.getStatus(),
+                    performance.getId()
             );
         }
 
@@ -149,12 +150,18 @@ public class MissionPerformanceService {
                     MemberRole.PARENT,
                     "미션 완료",
                     child.getName() + "님이 미션을 완료했습니다.",
-                    NotificationType.GENERAL
+                    NotificationType.MISSION_APPROVED,
+                    child.getId(),
+                    mission.getId(),
+                    performance.getId(),
+                    "/today-mission?childrenId=" + child.getId()
             );
 
             return new AiVerificationResponse(
                     true,
-                    "미션 완료로 보상 시간이 지급되었습니다."
+                    "미션 완료로 보상 시간이 지급되었습니다.",
+                    performance.getStatus(),
+                    performance.getId()
             );
         }
 
@@ -196,23 +203,73 @@ public class MissionPerformanceService {
                         MemberRole.PARENT,
                         "AI 미션 인증 완료",
                         child.getName() + "님의 미션이 AI 인증되었습니다.",
-                        NotificationType.GENERAL
+                        NotificationType.MISSION_APPROVED,
+                        child.getId(),
+                        mission.getId(),
+                        performance.getId(),
+                        "/today-mission?childrenId=" + child.getId()
+                );
+
+                notificationService.createNotification(
+                        child.getId(),
+                        MemberRole.CHILDREN,
+                        "미션 완료",
+                        "AI가 미션 수행을 확인했습니다.",
+                        NotificationType.MISSION_APPROVED,
+                        child.getId(),
+                        mission.getId(),
+                        performance.getId(),
+                        "/child-home/mission/" + mission.getId()
+                );
+            } else {
+                notificationService.createNotification(
+                        child.getId(),
+                        MemberRole.CHILDREN,
+                        "미션 반려",
+                        "AI가 미션 수행을 반려했습니다.",
+                        NotificationType.MISSION_REJECTED,
+                        child.getId(),
+                        mission.getId(),
+                        performance.getId(),
+                        "/child-home/mission/" + mission.getId()
                 );
             }
 
         } catch (Exception e) {
             e.printStackTrace();
-            // [AI 예외 처리] 구글 AI 서버 오류나 네트워크 장애 발생 시 Failsafe 우회
-            // DB에는 2번 단계에서 넣은 PENDING 데이터가 그대로 안전하게 유지
-            aiResponse = new AiVerificationResponse(false, "AI 서버 일시 오류로 인해 부모님 확인 대기 상태로 전환되었습니다.");
-            performance.updateStatusAndReason(MissionStatus.PENDING, aiResponse.reason());
+            // [AI 예외 처리] AI 미션은 부모 승인 API 대상이 아니므로 PENDING으로
+            // 남기면 앱에서 처리할 수 없는 대기 상태가 된다. 반려로 정리해
+            // 자녀가 다시 제출할 수 있게 한다.
+            aiResponse = new AiVerificationResponse(
+                    false,
+                    "AI 서버 일시 오류로 인해 다시 제출해 주세요.",
+                    MissionStatus.REJECTED,
+                    performance.getId()
+            );
+            performance.updateStatusAndReason(MissionStatus.REJECTED, aiResponse.reason());
+            notificationService.createNotification(
+                    child.getId(),
+                    MemberRole.CHILDREN,
+                    "미션 반려",
+                    "AI 확인에 실패해 다시 수행이 필요합니다.",
+                    NotificationType.MISSION_REJECTED,
+                    child.getId(),
+                    mission.getId(),
+                    performance.getId(),
+                    "/child-home/mission/" + mission.getId()
+            );
         }
 
         //최종적으로 DB에 영속화 (Save)
         performanceRepository.save(performance);
 
         //프론트엔드에게 돌려줄 AI 응답 반환
-        return aiResponse;
+        return new AiVerificationResponse(
+                aiResponse.isAccepted(),
+                aiResponse.reason(),
+                performance.getStatus(),
+                performance.getId()
+        );
     }
 
     @Transactional(readOnly = true)
@@ -223,6 +280,22 @@ public class MissionPerformanceService {
 
         // 부모 권한 검증
         if (!mission.getParent().getId().equals(parentId)) {
+            throw new MissionException(MissionErrorCode.UNAUTHORIZED_ACCESS);
+        }
+
+        MissionPerformance performance = performanceRepository.findTopByMissionIdOrderByIdDesc(missionId)
+                .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
+
+        return MissionPerformanceResDTO.MissionPerformanceResponse.of(performance, photoUrlResolver);
+    }
+
+    @Transactional(readOnly = true)
+    public MissionPerformanceResDTO.MissionPerformanceResponse getChildMissionPerformance(Long missionId, Long childId) {
+
+        Mission mission = missionRepository.findById(missionId)
+                .orElseThrow(() -> new MissionException(MissionErrorCode.MISSION_NOT_FOUND));
+
+        if (!mission.getChild().getId().equals(childId)) {
             throw new MissionException(MissionErrorCode.UNAUTHORIZED_ACCESS);
         }
 
@@ -245,19 +318,17 @@ public class MissionPerformanceService {
             throw new MissionException(MissionErrorCode.UNAUTHORIZED_ACCESS);
         }
 
-        // 대기 상태인 미션만 승인 가능
-        if (performance.getStatus() != MissionStatus.PENDING) {
-            throw new IllegalStateException("대기 상태인 미션만 승인할 수 있습니다.");
-        }
+        // 해당 미션의 설정 정보 조회
+        MissionSetting setting = missionSettingRepository.findByMissionId(mission.getId())
+                .orElseThrow(() -> new IllegalArgumentException("해당 미션의 설정 정보를 찾을 수 없습니다."));
+
+        validateParentReviewable(performance, setting);
+        assertMissionHasNoAcceptedPerformance(mission.getId(), performance);
 
         performance.updateStatusAndReason(
                 MissionStatus.ACCEPTED,
                 "부모님이 미션을 승인했습니다."
         );
-
-        // 해당 미션의 설정 정보 조회
-        MissionSetting setting = missionSettingRepository.findByMissionId(mission.getId())
-                .orElseThrow(() -> new IllegalArgumentException("해당 미션의 설정 정보를 찾을 수 없습니다."));
 
         int rewardTime = setting.getReward();
 
@@ -286,7 +357,11 @@ public class MissionPerformanceService {
                 MemberRole.CHILDREN,
                 "미션 승인 완료",
                 "부모님이 미션을 승인했습니다.",
-                NotificationType.MISSION_APPROVED
+                NotificationType.MISSION_APPROVED,
+                performance.getChild().getId(),
+                mission.getId(),
+                performance.getId(),
+                "/child-home/mission/" + mission.getId()
         );
     }
 
@@ -303,10 +378,10 @@ public class MissionPerformanceService {
             throw new MissionException(MissionErrorCode.UNAUTHORIZED_ACCESS);
         }
 
-        // 대기 상태인 미션만 거절 가능
-        if (performance.getStatus() != MissionStatus.PENDING) {
-            throw new IllegalStateException("대기 상태인 미션만 거절할 수 있습니다.");
-        }
+        MissionSetting setting = missionSettingRepository.findByMissionId(mission.getId())
+                .orElseThrow(() -> new IllegalArgumentException("해당 미션의 설정 정보를 찾을 수 없습니다."));
+
+        validateParentReviewable(performance, setting);
 
         performance.updateStatusAndReason(
                 MissionStatus.REJECTED,
@@ -321,7 +396,43 @@ public class MissionPerformanceService {
                 MemberRole.CHILDREN,
                 "미션 거절",
                 "부모님이 미션을 거절했습니다.",
-                NotificationType.MISSION_REJECTED
+                NotificationType.MISSION_REJECTED,
+                performance.getChild().getId(),
+                mission.getId(),
+                performance.getId(),
+                "/child-home/mission/" + mission.getId()
         );
+    }
+
+    private void validateParentReviewable(MissionPerformance performance, MissionSetting setting) {
+        if (performance.getStatus() != MissionStatus.PENDING ||
+                setting.getVerificationType() != VerificationType.PARENT) {
+            throw new MissionException(MissionErrorCode.INVALID_MISSION_STATE);
+        }
+    }
+
+    private void assertMissionIsNotCompleted(Long missionId) {
+        if (performanceRepository.existsByMissionIdAndStatus(missionId, MissionStatus.ACCEPTED)) {
+            throw new MissionException(MissionErrorCode.MISSION_ALREADY_COMPLETED);
+        }
+    }
+
+    private void assertMissionIsNotPendingReview(Long missionId) {
+        performanceRepository.findTopByMissionIdOrderByIdDesc(missionId)
+                .ifPresent(lastPerformance -> {
+                    if (lastPerformance.getStatus() == MissionStatus.PENDING) {
+                        throw new MissionException(MissionErrorCode.MISSION_ALREADY_SUBMITTED);
+                    }
+                });
+    }
+
+    private void assertMissionHasNoAcceptedPerformance(
+            Long missionId,
+            MissionPerformance currentPerformance
+    ) {
+        if (currentPerformance.getStatus() == MissionStatus.ACCEPTED) {
+            return;
+        }
+        assertMissionIsNotCompleted(missionId);
     }
 }

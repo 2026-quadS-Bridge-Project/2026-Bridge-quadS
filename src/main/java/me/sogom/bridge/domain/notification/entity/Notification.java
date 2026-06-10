@@ -44,6 +44,14 @@ public class Notification extends BaseEntity {
     @Column(nullable = false)
     private NotificationType notificationType;
 
+    private Long childId;
+
+    private Long missionId;
+
+    private Long performanceId;
+
+    private String targetRoute;
+
     @Builder
     public Notification(
             Long memberId,
@@ -51,7 +59,11 @@ public class Notification extends BaseEntity {
             String title,
             String content,
             Boolean isRead,
-            NotificationType notificationType
+            NotificationType notificationType,
+            Long childId,
+            Long missionId,
+            Long performanceId,
+            String targetRoute
     ) {
         this.memberId = memberId;
         this.memberRole = memberRole;
@@ -59,6 +71,10 @@ public class Notification extends BaseEntity {
         this.content = content;
         this.isRead = isRead;
         this.notificationType = notificationType;
+        this.childId = childId;
+        this.missionId = missionId;
+        this.performanceId = performanceId;
+        this.targetRoute = targetRoute;
     }
 
     // 알림 읽음 처리

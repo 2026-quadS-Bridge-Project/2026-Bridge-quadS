@@ -33,6 +33,31 @@ public class NotificationService {
             String content,
             NotificationType notificationType
     ) {
+        createNotification(
+                memberId,
+                memberRole,
+                title,
+                content,
+                notificationType,
+                null,
+                null,
+                null,
+                null
+        );
+    }
+
+    @Transactional
+    public void createNotification(
+            Long memberId,
+            MemberRole memberRole,
+            String title,
+            String content,
+            NotificationType notificationType,
+            Long childId,
+            Long missionId,
+            Long performanceId,
+            String targetRoute
+    ) {
 
         Notification notification = Notification.builder()
                 .memberId(memberId)
@@ -41,6 +66,10 @@ public class NotificationService {
                 .content(content)
                 .isRead(false)
                 .notificationType(notificationType)
+                .childId(childId)
+                .missionId(missionId)
+                .performanceId(performanceId)
+                .targetRoute(targetRoute)
                 .build();
 
         // 알림 저장
@@ -54,6 +83,10 @@ public class NotificationService {
                     .body(content)
                     .type(notificationType.name())
                     .targetId(notification.getId())
+                    .childId(childId)
+                    .missionId(missionId)
+                    .performanceId(performanceId)
+                    .deeplink(targetRoute)
                     .build();
 
             fcmService.sendPush(

@@ -10,6 +10,7 @@ import java.util.List;
 public class PolicyResponse {
 
     //시간 정책 관련 데이터
+    private String yearMonth;          // 정책이 적용되는 년월 (예: "2026-06")
     private int totalAvailableTime;    // 이번 달 쓸 수 있는 총 시간 (기본 + 보상 합계)
     private int baseTime;              // 부모님이 설정한 순수 기본 시간
     private int accumulatedRewardTime; // 미션으로 모은 보상 시간

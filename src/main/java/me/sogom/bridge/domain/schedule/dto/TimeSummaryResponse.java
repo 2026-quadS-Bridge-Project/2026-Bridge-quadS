@@ -13,4 +13,5 @@ public class TimeSummaryResponse {
     private int basePolicyMinutes;
     private DailyScheduleResponse todaySchedule;
     private int rewardPoolMinutes;
+    private int totalAvailableTime;
 }

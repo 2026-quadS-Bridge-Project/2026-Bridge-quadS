@@ -180,6 +180,7 @@ public class ParentService {
                     .basePolicyMinutes(0)
                     .todaySchedule(null)
                     .rewardPoolMinutes(0)
+                    .totalAvailableTime(0)
                     .build();
         }
 
@@ -194,6 +195,7 @@ public class ParentService {
                     .basePolicyMinutes(activePolicy.getBaseTime())
                     .todaySchedule(null)
                     .rewardPoolMinutes(activePolicy.getAccumulatedRewardTime())
+                    .totalAvailableTime(activePolicy.getTotalAvailableTime())
                     .build();
         }
 
@@ -208,6 +210,7 @@ public class ParentService {
                 .basePolicyMinutes(basePolicyMinutes)
                 .todaySchedule(dailySchedule.orElse(null))
                 .rewardPoolMinutes(activePolicy.getAccumulatedRewardTime())
+                .totalAvailableTime(activePolicy.getTotalAvailableTime())
                 .build();
     }
 

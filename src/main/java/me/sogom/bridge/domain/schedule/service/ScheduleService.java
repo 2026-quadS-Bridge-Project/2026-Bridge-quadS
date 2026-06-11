@@ -66,8 +66,10 @@ public class ScheduleService {
                     TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
                             .orElseThrow(() -> new IllegalArgumentException("해당 월의 부모 정책이 설정되지 않았습니다."));
 
-                    // 템플릿에 설정된 시간만큼 기본 시간에서 선차감 진행
-                    policy.deductAvailableTime(template.getBaseMinutes());
+                    int baseMinutes = resolveDailyBaseMinutes(policy, template.getBaseMinutes());
+                    if (baseMinutes > 0) {
+                        policy.deductAvailableTime(baseMinutes);
+                    }
                     timePolicyRepository.save(policy);
 
                     // 자녀 엔티티 조회
@@ -77,7 +79,7 @@ public class ScheduleService {
                     DailyTimeAllocation newAllocation = DailyTimeAllocation.builder()
                             .child(child)
                             .targetDate(targetDate)
-                            .baseMinutes(template.getBaseMinutes())
+                            .baseMinutes(baseMinutes)
                             .extendedMinutes(0) // 처음 생성될 때는 연장 시간이 0분
                             .build();
 
@@ -178,10 +180,17 @@ public class ScheduleService {
         String yearMonth = yearMonthOf(targetDate);
         int weekNumber = weekNumberOf(targetDate);
         DayOfWeek dayOfWeek = targetDate.getDayOfWeek();
+        Optional<TimePolicy> policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth);
 
         return weeklyRepository.findByChildIdAndDayOfWeekAndYearMonthAndWeekNumber(
                         childId, dayOfWeek, yearMonth, weekNumber)
-                .map(template -> DailyScheduleResponse.preview(targetDate, template.getBaseMinutes(), 0));
+                .map(template -> DailyScheduleResponse.preview(
+                        targetDate,
+                        policy
+                                .map(timePolicy -> resolveDailyBaseMinutes(timePolicy, template.getBaseMinutes()))
+                                .orElse(template.getBaseMinutes()),
+                        0
+                ));
     }
 
     public String yearMonthOf(LocalDate targetDate) {
@@ -190,6 +199,11 @@ public class ScheduleService {
 
     public int weekNumberOf(LocalDate targetDate) {
         return Math.min(((targetDate.getDayOfMonth() - 1) / 7) + 1, 4);
+    }
+
+    private int resolveDailyBaseMinutes(TimePolicy policy, int requestedMinutes) {
+        int safeRequestedMinutes = Math.max(requestedMinutes, 0);
+        return Math.min(safeRequestedMinutes, policy.getTotalAvailableTime());
     }
 
     //자녀가 여분(보상) 시간을 사용해 오늘 시간을 연장할 때
@@ -205,15 +219,15 @@ public class ScheduleService {
         //날짜 변환 ("yyyy-MM" 형태)
         String yearMonth = targetDate.format(DateTimeFormatter.ofPattern("yyyy-MM"));
 
-        //DB에서 이번 달 부모 정책 정보 가져오기
+        //오늘의 스케줄 데이터를 먼저 가져오기
+        //아직 daily가 없다면 템플릿 시간 중 현재 사용 가능한 만큼만 생성된다.
+        DailyTimeAllocation allocation = getOrCreateDailyAllocation(childId, targetDate);
+
         TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
                 .orElseThrow(() -> new IllegalArgumentException("해당 월의 부모 정책이 설정되지 않았습니다."));
 
         // 기본 시간에서 먼저 차감하고, 부족한 경우 보상 시간에서 차감한다.
         policy.deductAvailableTime(extraMinutes);
-
-        //오늘의 스케줄 데이터를 가져오기
-        DailyTimeAllocation allocation = getOrCreateDailyAllocation(childId, targetDate);
 
         //오늘 스케줄에 시간을 연장하기
         allocation.addExtraTime(extraMinutes);

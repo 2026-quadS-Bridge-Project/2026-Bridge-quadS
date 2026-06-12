@@ -75,4 +75,15 @@ public class TimePolicy extends BaseEntity {
         }
         this.accumulatedRewardTime += unusedMinutes;
     }
+
+    // 미래 일별 예산을 보호하기 위해, 오직 순수 보상(보너스) 풀에서만 깎아내는 전용 메서드
+    public void deductRewardTime(int minutes) {
+        if (minutes <= 0) {
+            throw new IllegalArgumentException("차감할 시간은 0보다 커야 합니다.");
+        }
+        if (this.accumulatedRewardTime < minutes) {
+            throw new IllegalArgumentException("사용 가능한 보상(보너스 및 여분) 시간이 부족합니다.");
+        }
+        this.accumulatedRewardTime -= minutes;
+    }
 }

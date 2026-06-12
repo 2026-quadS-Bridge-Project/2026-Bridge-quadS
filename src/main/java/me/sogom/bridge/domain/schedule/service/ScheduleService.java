@@ -108,6 +108,7 @@ public class ScheduleService {
             return false;
         }
 
+        // 템플릿(요일별) 배분은 주간 예산과 100% 완벽 일치(==) 검증
         boolean weeklyTemplatesMatchBudgets = budgets.stream()
                 .filter(budget -> requiredWeeks.contains(budget.getWeekNumber()))
                 .allMatch(budget ->
@@ -145,10 +146,27 @@ public class ScheduleService {
         ));
     }
 
+    // 시간 설정 전체 확정 시점에 여분 정산 처리 로직 추가
     @Transactional
     public void completeTimePlan(Long childId, String yearMonth) {
         if (!hasChildPlan(childId, yearMonth)) {
             throw new IllegalArgumentException("시간 계획이 아직 완료되지 않았습니다.");
+        }
+
+        // 월간 예산 분배 시 남은 자투리 여분을 계산해 보상 풀로 자동 정산
+        TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
+                .orElseThrow(() -> new IllegalArgumentException("해당 월의 부모 정책이 설정되지 않았습니다."));
+
+        List<WeeklyBudget> budgets = weeklyBudgetRepository.findAllByChildIdAndYearMonth(childId, yearMonth);
+        int totalAllocatedMinutes = budgets.stream()
+                .mapToInt(WeeklyBudget::getAllocatedMinutes)
+                .sum();
+
+        int remainderMinutes = policy.getBaseTime() - totalAllocatedMinutes;
+        if (remainderMinutes > 0) {
+            policy.updateBaseTime(totalAllocatedMinutes); // baseTime은 요일 템플릿과 매핑되도록 정액 축소
+            policy.addReward(remainderMinutes);           // 남은 여분 분(minutes)은 보상 시간 저금통으로 전액 격리 이동
+            timePolicyRepository.save(policy);
         }
 
         Children child = childrenRepository.findById(childId).orElseThrow();
@@ -226,8 +244,8 @@ public class ScheduleService {
         TimePolicy policy = timePolicyRepository.findByChildIdAndYearMonth(childId, yearMonth)
                 .orElseThrow(() -> new IllegalArgumentException("해당 월의 부모 정책이 설정되지 않았습니다."));
 
-        // 기본 시간에서 먼저 차감하고, 부족한 경우 보상 시간에서 차감한다.
-        policy.deductAvailableTime(extraMinutes);
+        // 미래 예산을 무단으로 탕진하지 않도록 오직 격리된 보상 시간 풀에서만 차감!
+        policy.deductRewardTime(extraMinutes);
 
         //오늘 스케줄에 시간을 연장하기
         allocation.addExtraTime(extraMinutes);
